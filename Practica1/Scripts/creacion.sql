@@ -1,3 +1,9 @@
+DROP DATABASE IF EXISTS hotel_db;
+
+CREATE DATABASE hotel_db;
+
+USE hotel_db;
+
 CREATE TABLE CLIENTE (
 	id_cliente INT NOT NULL PRIMARY KEY,
     nombre VARCHAR(150) NOT NULL,
