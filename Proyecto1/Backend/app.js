@@ -1,13 +1,14 @@
 const express = require('express');
 const { MongoClient, ServerApiVersion } = require('mongodb');
+require('dotenv').config(); // para leer variables de entorno locales
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Middleware para parsear JSON
 app.use(express.json());
 
-const uri = "mongodb+srv://gomezeiler250:HMwvvn7Arf0qsWud@cluster0.nbvrl6x.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+// URI segura desde variable de entorno
+const uri = process.env.MONGODB_URI;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -22,34 +23,28 @@ let collection;
 async function connectDB() {
   try {
     await client.connect();
-    console.log('✅ Conectado a MongoDB');
+    console.log('✅ Conectado a MongoDB Atlas');
 
-    const db = client.db('miBase'); // nombre de la base
-    collection = db.collection('personas'); // colección 'personas'
+    const db = client.db('miBase'); // cambia si tu base se llama diferente
+    collection = db.collection('personas');
   } catch (error) {
-    console.error('❌ Error conectando a MongoDB:', error);
+    console.error('❌ Error al conectar a MongoDB:', error);
   }
 }
 
-// Llamamos a la conexión al iniciar la app
 connectDB();
 
-// Endpoints
-
-
-// GET /status - verificar conexión a MongoDB
+// Verificar conexión
 app.get('/status', async (req, res) => {
   try {
-    // Ping a la base admin para verificar conexión
     await client.db('admin').command({ ping: 1 });
-    res.json({ message: '✅ Conectado correctamente a MongoDB' });
+    res.json({ message: '✅ Conexión activa con MongoDB' });
   } catch (error) {
-    res.status(500).json({ message: '❌ No se pudo conectar a MongoDB', error: error.message });
+    res.status(500).json({ message: '❌ Error de conexión', error: error.message });
   }
 });
 
-
-// GET /personas - listar todas las personas
+// Listar personas
 app.get('/personas', async (req, res) => {
   try {
     const personas = await collection.find({}).toArray();
@@ -59,7 +54,7 @@ app.get('/personas', async (req, res) => {
   }
 });
 
-// POST /personas - agregar una persona
+// Insertar una persona
 app.post('/personas', async (req, res) => {
   try {
     const persona = req.body;
@@ -70,10 +65,10 @@ app.post('/personas', async (req, res) => {
   }
 });
 
-// POST /personasT - agregar varias personas
+// Insertar múltiples personas
 app.post('/personasT', async (req, res) => {
   try {
-    const personas = req.body; // debe ser un arreglo de objetos
+    const personas = req.body;
     const result = await collection.insertMany(personas);
     res.status(201).json({
       message: 'Personas agregadas',
@@ -85,7 +80,6 @@ app.post('/personasT', async (req, res) => {
   }
 });
 
-
 app.listen(port, () => {
-  console.log(`Servidor corriendo en http://localhost:${port}`);
+  console.log(`🚀 Servidor activo en http://localhost:${port}`);
 });
