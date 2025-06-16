@@ -414,15 +414,12 @@ router.get('/reporte7', async (req, res) => {
   }
 });
 
-
-//8. Distribución de aprobados por municipio y carrera objetivo
+// Reporte 8: Distribución de aprobados por municipio y carrera objetivo con total general
 router.get('/reporte8', async (req, res) => {
   try {
-    const resultados = await collection.aggregate([
+    const resultado = await collection.aggregate([
       {
-        $match: {
-          aprobacion: true
-        }
+        $match: { aprobacion: true }
       },
       {
         $group: {
@@ -449,14 +446,367 @@ router.get('/reporte8', async (req, res) => {
       }
     ]).toArray();
 
+    // Calcular total general de aprobados
+    const total_general = resultado.reduce((acc, item) => acc + item.total_aprobados, 0);
+
     res.json({
       message: '✅ Distribución de aprobados por municipio y carrera objetivo',
-      data: resultados
+      total_general_aprobados: total_general,
+      data: resultado
     });
+
   } catch (error) {
-    console.error('❌ Error al generar reporte8:', error);
-    res.status(500).json({ error: 'Error al generar el reporte8' });
+    console.error('❌ Error en reporte 8:', error.message);
+    res.status(500).json({ error: 'Error al generar el reporte' });
   }
 });
+
+
+// Reporte 9: Cantidad de evaluaciones por mes y materia para instituciones públicas
+router.get('/reporte9', async (req, res) => {
+  try {
+    const resultado = await collection.aggregate([
+      {
+        $match: {
+          tipo_institucion_educativa: 'PUBLICO'
+        }
+      },
+      {
+        $addFields: {
+          mes_evaluacion: { $substrBytes: ['$fecha_asignacion', 5, 2] } // extrae mes MM
+        }
+      },
+      {
+        $group: {
+          _id: {
+            mes: '$mes_evaluacion',
+            materia: '$materia'
+          },
+          cantidad_evaluaciones: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          mes: '$_id.mes',
+          materia: '$_id.materia',
+          cantidad_evaluaciones: 1
+        }
+      },
+      {
+        $sort: { mes: 1, materia: 1 }
+      }
+    ]).toArray();
+
+    res.json({
+      message: '✅ Cantidad de evaluaciones por mes y materia (instituciones públicas)',
+      data: resultado
+    });
+  } catch (error) {
+    console.error('❌ Error al generar reporte 9:', error.message);
+    res.status(500).json({ error: 'Error al generar el reporte 9' });
+  }
+});
+
+
+// Reporte 10: Top 5 carreras más demandadas por aspirantes entre 16 y 18 años
+router.get('/reporte10', async (req, res) => {
+  try {
+    const currentYear = 2025; // o usa new Date().getFullYear()
+
+    const resultado = await collection.aggregate([
+      {
+        $match: {
+          anio_nacimiento: { $type: "number" }
+        }
+      },
+      {
+        $addFields: {
+          edad: { $subtract: [currentYear, "$anio_nacimiento"] }
+        }
+      },
+      {
+        $match: {
+          edad: { $gte: 16, $lte: 18 }
+        }
+      },
+      {
+        $group: {
+          _id: "$carrera_objetivo",
+          total_aspirantes: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { total_aspirantes: -1 }
+      },
+      {
+        $limit: 5
+      },
+      {
+        $project: {
+          _id: 0,
+          carrera: "$_id",
+          total_aspirantes: 1
+        }
+      }
+    ]).toArray();
+
+    res.json({
+      message: '✅ Top 5 carreras más demandadas por aspirantes entre 16 y 18 años',
+      data: resultado
+    });
+  } catch (error) {
+    console.error('❌ Error al generar reporte 10:', error.message);
+    res.status(500).json({ error: 'Error al generar el reporte 10' });
+  }
+});
+
+
+// Reporte 11: Historial de desempeño por aspirante con desglose de intentos por materia y resultados
+router.get('/reporte11', async (req, res) => {
+  try {
+    const resultado = await collection.aggregate([
+      {
+        $group: {
+          _id: {
+            aspirante: "$correlativo_aspirante",
+            materia: "$materia"
+          },
+          total_intentos: { $sum: 1 },
+          total_aprobados: {
+            $sum: {
+              $cond: [{ $eq: ["$aprobacion", true] }, 1, 0]
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id.aspirante",
+          historial: {
+            $push: {
+              materia: "$_id.materia",
+              intentos: "$total_intentos",
+              aprobados: "$total_aprobados"
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total_estudiantes: { $sum: 1 },
+          estudiantes: {
+            $push: {
+              aspirante: "$_id",
+              historial: "$historial"
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          total_estudiantes: 1,
+          estudiantes: 1
+        }
+      }
+    ]).toArray();
+
+    res.json({
+      message: '✅ Historial de desempeño por aspirante generado correctamente',
+      ...resultado[0]
+    });
+
+  } catch (error) {
+    console.error('❌ Error al generar reporte 11:', error.message);
+    res.status(500).json({ error: 'Error al generar el reporte 11' });
+  }
+});
+
+// Reporte 12: Distribución por sexo y tipo de institución educativa
+router.get('/reporte12', async (req, res) => {
+  try {
+    const resultado = await collection.aggregate([
+      {
+        $group: {
+          _id: {
+            sexo: "$sexo",
+            tipo: "$tipo_institucion_educativa"
+          },
+          total: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          sexo: "$_id.sexo",
+          tipo_institucion_educativa: "$_id.tipo",
+          total: 1
+        }
+      },
+      { $sort: { sexo: 1, tipo_institucion_educativa: 1 } }
+    ]).toArray();
+
+    res.json({
+      message: "✅ Distribución por sexo y tipo de institución educativa",
+      data: resultado
+    });
+  } catch (error) {
+    console.error('❌ Error al generar el reporte 12:', error.message);
+    res.status(500).json({ error: 'Error al generar el reporte' });
+  }
+});
+
+
+// Reporte 13: Tasa de aprobación por edad (con aprobados y no aprobados)
+router.get('/reporte13', async (req, res) => {
+  try {
+    const resultado = await collection.aggregate([
+      {
+        $match: {
+          anio_nacimiento: { $type: "number", $gte: 1900, $lte: 2025 }
+        }
+      },
+      {
+        $addFields: {
+          edad: { $subtract: [2025, "$anio_nacimiento"] }
+        }
+      },
+      {
+        $group: {
+          _id: "$edad",
+          total: { $sum: 1 },
+          aprobados: {
+            $sum: { $cond: [{ $eq: ["$aprobacion", true] }, 1, 0] }
+          },
+          no_aprobados: {
+            $sum: { $cond: [{ $eq: ["$aprobacion", false] }, 1, 0] }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          edad: "$_id",
+          total: 1,
+          aprobados: 1,
+          no_aprobados: 1,
+          porcentaje_aprobacion: {
+            $round: [
+              { $multiply: [{ $divide: ["$aprobados", "$total"] }, 100] },
+              2
+            ]
+          }
+        }
+      },
+      { $sort: { edad: 1 } }
+    ]).toArray();
+
+    res.json({
+      message: '✅ Tasa de aprobación por edad con aprobados y no aprobados',
+      data: resultado
+    });
+  } catch (error) {
+    console.error('❌ Error en reporte 13:', error.message);
+    res.status(500).json({ error: 'Error al generar el reporte' });
+  }
+});
+
+// reporte 14 
+router.get('/reporte14', async (req, res) => {
+  try {
+    const resultado = await collection.aggregate([
+      {
+        $group: {
+          _id: {
+            aspirante: "$correlativo_aspirante",
+            materia: "$materia"
+          },
+          intentos_por_aspirante: { $sum: 1 }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id.materia",
+          promedio_intentos: { $avg: "$intentos_por_aspirante" }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          materia: "$_id",
+          promedio_intentos: { $round: ["$promedio_intentos", 2] }
+        }
+      },
+      { $sort: { promedio_intentos: -1 } }
+    ]).toArray();
+
+    res.json({
+      message: '✅ Número promedio de intentos por materia',
+      data: resultado
+    });
+  } catch (error) {
+    console.error('❌ Error al generar reporte 14:', error.message);
+    res.status(500).json({ error: 'Error al generar el reporte' });
+  }
+});
+
+// reporte 15
+
+router.get('/reporte15/:aspiranteId', async (req, res) => {
+  try {
+    const aspiranteId = req.params.aspiranteId;
+
+    const historial = await collection.find({ correlativo_aspirante: aspiranteId }).toArray();
+
+    if (historial.length === 0) {
+      return res.status(404).json({ message: 'No se encontró historial para el aspirante' });
+    }
+
+    res.json({
+      message: `✅ Historial completo del aspirante ${aspiranteId}`,
+      data: historial
+    });
+  } catch (error) {
+    console.error('❌ Error al obtener historial:', error.message);
+    res.status(500).json({ error: 'Error al obtener historial del aspirante' });
+  }
+});
+
+// reporte 16
+router.get('/reporte16', async (req, res) => {
+  try {
+    const resultado = await collection.aggregate([
+      {
+        $match: {
+          numero_de_fecha_de_evaluacion: 1,
+          aprobacion: false
+        }
+      },
+      {
+        $group: {
+          _id: '$carrera_objetivo',
+          aspirantes_reprobados: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { aspirantes_reprobados: -1 }
+      }
+    ]).toArray();
+
+    res.json({
+      message: '✅ Carreras con más aspirantes reprobados en primer intento',
+      data: resultado.map(item => ({
+        carrera: item._id,
+        reprobados_primer_intento: item.aspirantes_reprobados
+      }))
+    });
+  } catch (error) {
+    console.error('❌ Error al generar reporte 16:', error);
+    res.status(500).json({ error: 'Error al generar el reporte' });
+  }
+});
+
 
 module.exports = { router, init };
