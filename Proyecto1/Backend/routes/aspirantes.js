@@ -67,4 +67,33 @@ function extractDriveFileId(url) {
   return match ? match[1] : null;
 }
 
+
+// Reporte: Aspirantes por tipo de institución educativa
+router.get('/reporte1', async (req, res) => {
+  try {
+    const resultado = await collection.aggregate([
+      {
+        $group: {
+          _id: '$tipo_institucion_educativa',
+          total: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { total: -1 }
+      }
+    ]).toArray();
+
+    res.json({
+      message: '✅ Reporte generado correctamente',
+      data: resultado.map(item => ({
+        tipo_institucion_educativa: item._id,
+        total_aspirantes: item.total
+      }))
+    });
+  } catch (error) {
+    console.error('❌ Error al generar reporte 1:', error.message);
+    res.status(500).json({ error: 'Error al generar el reporte' });
+  }
+});
+
 module.exports = { router, init };
