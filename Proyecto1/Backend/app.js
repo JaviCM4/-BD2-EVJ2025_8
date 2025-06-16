@@ -26,9 +26,9 @@ async function connectDB() {
 
     const db = client.db('usac_db');
     const collection = db.collection('Aspirantes');
-
+    const resumenCollection = db.collection('resumen_carrera')
     initPersonas(collection); // Inyectar colección en módulo
-    initAspitantes(collection);
+    initAspitantes(collection, resumenCollection);
   } catch (error) {
     console.error('❌ Error al conectar a MongoDB:', error);
   }
