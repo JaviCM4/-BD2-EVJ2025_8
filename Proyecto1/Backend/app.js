@@ -28,6 +28,7 @@ async function connectDB() {
     const collection = db.collection('Aspirantes');
 
     initPersonas(collection); // Inyectar colección en módulo
+    initAspitantes(collection);
   } catch (error) {
     console.error('❌ Error al conectar a MongoDB:', error);
   }
