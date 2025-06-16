@@ -3,6 +3,7 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 require('dotenv').config();
 
 const { router: personasRouter, init: initPersonas } = require('./routes/personas');
+const {router:aspirantesRouter, init: initAspitantes} =  require('./routes/aspirantes');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -23,8 +24,8 @@ async function connectDB() {
     await client.connect();
     console.log('✅ Conectado a MongoDB Atlas');
 
-    const db = client.db('miBase');
-    const collection = db.collection('personas');
+    const db = client.db('usac_db');
+    const collection = db.collection('Aspirantes');
 
     initPersonas(collection); // Inyectar colección en módulo
   } catch (error) {
@@ -36,6 +37,7 @@ connectDB();
 
 // Rutas
 app.use('/personas', personasRouter);
+app.use('/aspirantes',aspirantesRouter);
 
 // Ruta de prueba
 app.get('/status', async (req, res) => {
