@@ -698,25 +698,31 @@ router.get('/reporte13', async (req, res) => {
           total: 1,
           aprobados: 1,
           no_aprobados: 1,
-          publicos: 1,
-          privados: 1,
           porcentaje_aprobacion: {
             $round: [
               { $multiply: [{ $divide: ["$aprobados", "$total"] }, 100] },
               2
             ]
           },
-          porcentaje_publicos: {
-            $round: [
-              { $multiply: [{ $divide: ["$publicos", "$total"] }, 100] },
-              2
-            ]
-          },
-          porcentaje_privados: {
-            $round: [
-              { $multiply: [{ $divide: ["$privados", "$total"] }, 100] },
-              2
-            ]
+          institucion: {
+            "PUBLICO": {
+              cantidad: "$publicos",
+              porcentaje: {
+                $round: [
+                  { $multiply: [{ $divide: ["$publicos", "$total"] }, 100] },
+                  2
+                ]
+              }
+            },
+            "PRIVADO": {
+              cantidad: "$privados",
+              porcentaje: {
+                $round: [
+                  { $multiply: [{ $divide: ["$privados", "$total"] }, 100] },
+                  2
+                ]
+              }
+            }
           }
         }
       },
@@ -732,7 +738,6 @@ router.get('/reporte13', async (req, res) => {
     res.status(500).json({ error: 'Error al generar el reporte' });
   }
 });
-
 // reporte 14 
 router.get('/reporte14', async (req, res) => {
   try {
