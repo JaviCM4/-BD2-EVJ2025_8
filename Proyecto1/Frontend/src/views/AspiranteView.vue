@@ -1,18 +1,44 @@
 <script setup lang="ts">
-  import { ref, onMounted, onUnmounted } from 'vue';
-  import {Chart,CategoryScale,LinearScale,BarElement,BarController,LineController,LineElement,PointElement,Title,Tooltip,Legend,type ChartConfiguration} from 'chart.js';
+  import { ref, onMounted as montar, onUnmounted as desmontar } from 'vue';
+  import {Chart,CategoryScale,LinearScale,BarElement,BarController,LineController,LineElement,PointElement,ArcElement,PieController,Title,Tooltip,Legend,type ChartConfiguration} from 'chart.js';
+  import axios from 'axios';
 
-  Chart.register(CategoryScale,LinearScale,BarElement,BarController,LineController,LineElement,PointElement,Title,Tooltip,Legend);
+  Chart.register(CategoryScale,LinearScale,BarElement,BarController,LineController,LineElement,PointElement,ArcElement,PieController,Title,Tooltip,Legend);
 
   // Referencias para el canvas y la instancia del chart
   const chartCanvas = ref<HTMLCanvasElement | null>(null);
-  let chartInstance: Chart | null = null;
+  let instanciaGrafica: Chart | null = null;
 
   // Estados reactivos
-  const isLoading = ref(false);
-  const apiData = ref<any[]>([]);
-  const selectedFields = ref<string[]>([]);
-  const availableFields = ref<string[]>([]);
+  const cargando = ref(false);
+  const datosApi = ref<any[]>([]);
+  const camposSeleccinados = ref<string[]>([]);
+  const camposDisponibles = ref<string[]>([]);
+  const mensajeApi = ref<string>(''); // Para mostrar el mensaje de la API
+  const tipoGraficaActual = ref<'bar' | 'pie'>('bar'); // NUEVO: Estado para el tipo de gráfica
+  
+  // NUEVO: Estado para el reporte seleccionado
+  const reporteSeleccionado = ref<number>(1);
+
+  // NUEVO: Lista de reportes disponibles con nombres descriptivos
+  const reportesDisponibles = ref([
+    { valor: 1, nombre: 'Reporte 1 - Aspirantes por tipo de institución educativa' },
+    { valor: 2, nombre: 'Reporte 2 - Cantidad de aprobados por materia' },
+    { valor: 3, nombre: 'Reporte 3 - Aprobados por carrera y año' },
+    { valor: 4, nombre: 'Reporte 4 - Porcentaje de aprobación por materia' },
+    { valor: 5, nombre: 'Reporte 5 - Promedio de edad por carrera' },
+    { valor: 6, nombre: 'Reporte 6 - Creación de colección auxiliar ' },
+    { valor: 7, nombre: 'Reporte 7 - Promedio de edad de los aspirantes que aprobaron por carrera y tipo de institución' },
+    { valor: 8, nombre: 'Reporte 8 - Distribución de aprobados por municipio y carrera objetivo' },
+    { valor: 9, nombre: 'Reporte 9 - Cantidad de evaluaciones por mes y materia, sólo para instituciones públicas' },
+    { valor: 10, nombre: 'Reporte 10 - Top 5 carreras más demandadas por aspirantes entre 16 y 18 años' },
+    { valor: 11, nombre: 'Reporte 11 - Historial de desempeño por aspirante con desglose de intentos por materia y resultados ' },
+    { valor: 12, nombre: 'Reporte 12 - Distribución por sexo y tipo de institución' },
+    { valor: 13, nombre: 'Reporte 13 - Tasa de aprobación por edad ' },
+    { valor: 14, nombre: 'Reporte 14 - Número promedio de intentos por materia' },
+    { valor: 15, nombre: 'Reporte 15 - Historial completo de un aspirante ' },
+    { valor: 16, nombre: 'Reporte 16 - Carreras con más aspirantes reprobados en primer intento' }
+  ]);
 
   const generarColores = (count: number) => {
     const colors = [
@@ -25,7 +51,12 @@
       'rgba(199, 199, 199, 0.8)',
       'rgba(83, 102, 255, 0.8)',
       'rgba(255, 99, 255, 0.8)',
-      'rgba(99, 255, 132, 0.8)'
+      'rgba(99, 255, 132, 0.8)',
+      'rgba(255, 159, 132, 0.8)',
+      'rgba(132, 255, 99, 0.8)',
+      'rgba(159, 132, 255, 0.8)',
+      'rgba(255, 205, 132, 0.8)',
+      'rgba(132, 205, 255, 0.8)'
     ];
     
     const result = [];
@@ -36,81 +67,158 @@
   };
 
   // Función para procesar datos de la API automáticamente
-  const processApiData = (data: any[]) => {
+  const procesarDatos = (data: any[]) => {
     if (!data || data.length === 0) return;
 
-    // Detectar automáticamente los campos disponibles
-    const firstItem = data[0];
-    const fields = Object.keys(firstItem).filter(key => {
-      const value = firstItem[key];
+    // Detectar automáticamente solo los campos numéricos
+    const primerElemento = data[0];
+    const campos = Object.keys(primerElemento).filter(key => {
+      const value = primerElemento[key];
+      
       // Solo incluir campos que sean números o strings que puedan convertirse a números
-      return typeof value === 'number' || 
-             (typeof value === 'string' && !isNaN(Number(value))) ||
-             typeof value === 'string';
+      return typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value)) && value.trim() !== '');
     });
     
-    availableFields.value = fields;
+    camposDisponibles.value = campos;
     
-    // Si no hay campos seleccionados, seleccionar los primeros dos automáticamente
-    if (selectedFields.value.length === 0) {
-      selectedFields.value = fields.slice(0, 2);
+    // Si no hay campos seleccionados, seleccionar el primer campo numérico automáticamente
+    if (camposSeleccinados.value.length === 0 && campos.length > 0) {
+      camposSeleccinados.value = [campos[0]];
     }
-
-    updateChart();
+    
+    actualizarGrafica();
   };
 
-  // Función para determinar qué campo usar como etiqueta (label)
-  const getLabelField = () => {
-    const firstItem = apiData.value[0];
-    // Buscar campos que parezcan ser etiquetas (strings, fechas, nombres, etc.)
+  // Función para determinar qué campos usar como etiqueta (label) - COMBINA TODOS LOS CAMPOS DE TEXTO
+  const obtenerEtiqueta = () => {
+    const firstItem = datosApi.value[0];
+    
+    // Buscar todos los campos que sean de texto (no numéricos)
     const labelFields = Object.keys(firstItem).filter(key => {
       const value = firstItem[key];
-      return typeof value === 'string' && isNaN(Number(value));
+      // Incluir strings que NO sean convertibles a números
+      return typeof value === 'string' && (isNaN(Number(value)) || value.trim() === '');
     });
     
-    return labelFields[0] || Object.keys(firstItem)[0];
+    // Si no hay campos de texto, usar el primer campo disponible
+    if (labelFields.length === 0) {
+      return Object.keys(firstItem)[0];
+    }
+    
+    // Si solo hay un campo de texto, usarlo directamente
+    if (labelFields.length === 1) {
+      return labelFields[0];
+    }
+    
+    // Si hay múltiples campos de texto, combinarlos
+    return 'combined_label';
   };
 
-  // Función para actualizar la gráfica con los datos procesados
-  const updateChart = () => {
-    if (!apiData.value.length || !selectedFields.value.length) return;
-
-    const labelField = getLabelField();
-    const labels = apiData.value.map(item => item[labelField] || `Item ${apiData.value.indexOf(item) + 1}`);
+  // NUEVA FUNCIÓN: Generar etiquetas combinadas
+  const generarEtiquetaCombinada = (item: any) => {
+    const firstItem = datosApi.value[0];
     
-    const datasets = selectedFields.value.map((field, index) => {
-      const data = apiData.value.map(item => {
+    // Obtener todos los campos de texto
+    const labelFields = Object.keys(firstItem).filter(key => {
+      const value = firstItem[key];
+      return typeof value === 'string' && (isNaN(Number(value)) || value.trim() === '');
+    });
+    
+    // Si no hay campos de texto, usar índice
+    if (labelFields.length === 0) {
+      return `Item ${datosApi.value.indexOf(item) + 1}`;
+    }
+    
+    // Si solo hay un campo de texto, usarlo directamente
+    if (labelFields.length === 1) {
+      return item[labelFields[0]] || 'Sin datos';
+    }
+    
+    // Combinar todos los campos de texto con un separador
+    const combinedLabel = labelFields
+      .map(field => item[field] || 'SIN DATOS')
+      .join(' - ');
+      
+    return combinedLabel;
+  };
+
+  // MODIFICAR la función actualizarGrafica para usar las nuevas etiquetas
+  const actualizarGrafica = () => {
+    if (!datosApi.value.length || !camposSeleccinados.value.length) return;
+
+    // MODIFICADO: Usar la nueva función para generar etiquetas combinadas
+    const labels = datosApi.value.map(item => generarEtiquetaCombinada(item));
+    
+    // MODIFICADO: Configuración especial para gráfico de pastel
+    if (tipoGraficaActual.value === 'pie') {
+      // Para gráfico de pastel, solo usar el primer campo seleccionado
+      const field = camposSeleccinados.value[0];
+      const data = datosApi.value.map(item => {
         const value = item[field];
         return typeof value === 'number' ? value : (isNaN(Number(value)) ? 0 : Number(value));
       });
       
-      const colors = generarColores(selectedFields.value.length);
+      const colors = generarColores(data.length);
       
-      return {
+      const datasets = [{
         label: field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' '),
         data: data,
-        backgroundColor: colors[index],
-        borderColor: colors[index].replace('0.8', '1'),
+        backgroundColor: colors,
+        borderColor: colors.map(color => color.replace('0.8', '1')),
         borderWidth: 2
-      };
-    });
+      }];
 
-    // Actualizar datos del chart
-    if (chartInstance) {
-      chartInstance.data.labels = labels;
-      chartInstance.data.datasets = datasets;
-      chartInstance.update();
+      // Actualizar datos del chart
+      if (instanciaGrafica) {
+        instanciaGrafica.data.labels = labels;
+        instanciaGrafica.data.datasets = datasets;
+        instanciaGrafica.update();
+      } else {
+        crearGrafica(labels, datasets);
+      }
     } else {
-      createChart(labels, datasets);
+      // Para gráficos de barras y líneas (configuración original)
+      const datasets = camposSeleccinados.value.map((field, index) => {
+        const data = datosApi.value.map(item => {
+          const value = item[field];
+          return typeof value === 'number' ? value : (isNaN(Number(value)) ? 0 : Number(value));
+        });
+        
+        const colors = generarColores(camposSeleccinados.value.length);
+        
+        return {
+          label: field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' '),
+          data: data,
+          backgroundColor: colors[index],
+          borderColor: colors[index].replace('0.8', '1'),
+          borderWidth: 2
+        };
+      });
+
+      // Actualizar datos del chart
+      if (instanciaGrafica) {
+        instanciaGrafica.data.labels = labels;
+        instanciaGrafica.data.datasets = datasets;
+        instanciaGrafica.update();
+      } else {
+        crearGrafica(labels, datasets);
+      }
     }
   };
 
-  // Configuración dinámica del chart
-  const createChart = (labels: string[], datasets: any[]) => {
+  // MODIFICADO: Actualizar el título de la gráfica según el reporte seleccionado
+  const obtenerTituloGrafica = () => {
+    const reporteActual = reportesDisponibles.value.find(r => r.valor === reporteSeleccionado.value);
+    return reporteActual ? reporteActual.nombre : `Reporte ${reporteSeleccionado.value}`;
+  };
+
+  // MODIFICADO: Configuración dinámica del chart
+  const crearGrafica = (labels: string[], datasets: any[]) => {
     if (!chartCanvas.value) return;
 
-    const config: ChartConfiguration<'bar'> = {
-      type: 'bar',
+    // MODIFICADO: Configuración específica para cada tipo de gráfica
+    const config: ChartConfiguration<any> = {
+      type: tipoGraficaActual.value,
       data: {
         labels: labels,
         datasets: datasets
@@ -121,19 +229,32 @@
         plugins: {
           title: {
             display: true,
-            text: 'Datos desde API'
+            text: obtenerTituloGrafica()
           },
           legend: {
             display: true,
-            position: 'top'
-          }
+            position: tipoGraficaActual.value === 'pie' ? 'right' : 'top'
+          },
+          // NUEVO: Configuración especial para tooltips en gráfico de pastel
+          tooltip: tipoGraficaActual.value === 'pie' ? {
+            callbacks: {
+              label: function(context: any) {
+                const label = context.label || '';
+                const value = context.parsed;
+                const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                const percentage = ((value / total) * 100).toFixed(1);
+                return `${label}: ${value} (${percentage}%)`;
+              }
+            }
+          } : undefined
         },
-        scales: {
+        // MODIFICADO: Escalas solo para gráficos que no sean de pastel
+        scales: tipoGraficaActual.value !== 'pie' ? {
           y: {
             beginAtZero: true,
             title: {
               display: true,
-              text: 'Valores'
+              text: 'Cantidad de Aspirantes'
             }
           },
           x: {
@@ -142,139 +263,238 @@
               text: 'Categorías'
             }
           }
-        }
+        } : undefined
       }
     };
 
-    if (chartInstance) {
-      chartInstance.destroy();
+    if (instanciaGrafica) {
+      instanciaGrafica.destroy();
     }
     
-    chartInstance = new Chart(chartCanvas.value, config);
+    instanciaGrafica = new Chart(chartCanvas.value, config);
   };
 
-  const datosDeEjemplo = [
-    { nombre: 'Estudiante A', edad: 22, experiencia: 2, puntuacion: 85, categoria: 'Junior' },
-    { nombre: 'Estudiante B', edad: 28, experiencia: 5, puntuacion: 92, categoria: 'Senior' },
-    { nombre: 'Estudiante C', edad: 25, experiencia: 3, puntuacion: 78, categoria: 'Mid' },
-    { nombre: 'Estudiante D', edad: 30, experiencia: 7, puntuacion: 95, categoria: 'Senior' },
-    { nombre: 'Estudiante E', edad: 24, experiencia: 1, puntuacion: 72, categoria: 'Junior' },
-    { nombre: 'Estudiante F', edad: 32, experiencia: 8, puntuacion: 88, categoria: 'Senior' },
-  ];
-
-  // Peticiones Http mejorada
+  // MODIFICADO: Petición HTTP que usa el reporte seleccionado
   const consultaGet = async () => {
-    apiData.value = datosDeEjemplo;
-    processApiData(datosDeEjemplo);
+    cargando.value = true;
+
+    try {
+      // MODIFICADO: URL dinámica basada en el reporte seleccionado
+      const response = await axios.get(`/api/aspirantes/reporte${reporteSeleccionado.value}`);
+
+      // Manejar tanto la estructura con 'data' como array directo
+      let datos: any[] = [];
+      let mensaje = '';
+      
+      if (response.data.data && Array.isArray(response.data.data)) {
+        // Estructura: { message: "", data: [] }
+        datos = response.data.data;
+        mensaje = response.data.message || '';
+      } else if (Array.isArray(response.data)) {
+        // Estructura: array directo
+        datos = response.data;
+      } else {
+        console.error('Estructura de respuesta no reconocida:', response.data);
+        alert('La estructura de datos recibida no es compatible');
+        return;
+      }
+
+      if (datos.length > 0) {
+        datosApi.value = datos;
+        mensajeApi.value = mensaje;
+        procesarDatos(datos);
+        console.log('Datos obtenidos:', datos);
+        console.log('Mensaje:', mensaje);
+      } else {
+        console.warn('No se recibieron datos');
+        alert('No se encontraron datos para mostrar');
+      }
+    } catch (error) {
+      console.error('Error al enviar datos:', error);
+      alert('Hubo un error al buscar los datos. Inténtelo nuevamente más tarde');
+    } finally {
+      cargando.value = false;
+    }
   };
 
-  // Función para cambiar el tipo de gráfica
-  const changeChartType = (type: 'bar' | 'line') => {
-    if (chartInstance) {
-      chartInstance.destroy();
-      const config = chartInstance.config as ChartConfiguration<any>;
-      config.type = type;
-      chartInstance = new Chart(chartCanvas.value!, config);
+  // NUEVO: Función que se ejecuta cuando cambia el reporte seleccionado
+  const cambiarReporte = () => {
+    // Limpiar datos anteriores
+    camposSeleccinados.value = [];
+    camposDisponibles.value = [];
+    
+    // Cargar nuevos datos
+    consultaGet();
+  };
+
+  // MODIFICADO: Función para cambiar el tipo de gráfica
+  const cambiarTipoGrafica = (type: 'bar' | 'pie') => {
+    tipoGraficaActual.value = type;
+    
+    if (instanciaGrafica) {
+      instanciaGrafica.destroy();
+      instanciaGrafica = null;
     }
+    
+    // NUEVO: Si cambiamos a gráfico de pastel y hay múltiples campos seleccionados,
+    // seleccionar solo el primero
+    if (type === 'pie' && camposSeleccinados.value.length > 1) {
+      camposSeleccinados.value = [camposSeleccinados.value[0]];
+    }
+    
+    actualizarGrafica();
   };
 
   // Función para cambiar campos seleccionados
-  const toggleField = (field: string) => {
-    const index = selectedFields.value.indexOf(field);
+  const intercalarCampos = (field: string) => {
+    const index = camposSeleccinados.value.indexOf(field);
     if (index > -1) {
-      selectedFields.value.splice(index, 1);
+      camposSeleccinados.value.splice(index, 1);
     } else {
-      selectedFields.value.push(field);
+      // NUEVO: Si es gráfico de pastel, solo permitir un campo
+      if (tipoGraficaActual.value === 'pie') {
+        camposSeleccinados.value = [field];
+      } else {
+        camposSeleccinados.value.push(field);
+      }
     }
-    updateChart();
+    actualizarGrafica();
   };
 
   // Ciclo de Vida
-  onMounted(() => {
+  montar(() => {
     consultaGet();
   });
 
-  onUnmounted(() => {
-    if (chartInstance) {
-      chartInstance.destroy();
+  desmontar(() => { 
+    if (instanciaGrafica) {
+      instanciaGrafica.destroy();
     }
   });
 </script>
 
-<template>
-  
+<template> 
   <div class="container">
     <h1>Información de los Aspirantes</h1>
     
+    <!-- NUEVO: Selector de reporte -->
+    <div class="report-selector">
+      <label for="reporte-select">Seleccionar Reporte:</label>
+      <select 
+        id="reporte-select" 
+        v-model="reporteSeleccionado" 
+        @change="cambiarReporte"
+        class="select-reporte"
+      >
+        <option 
+          v-for="reporte in reportesDisponibles" 
+          :key="reporte.valor" 
+          :value="reporte.valor"
+        >
+          {{ reporte.nombre }}
+        </option>
+      </select>
+    </div>
+    
     <!-- Controles para cargar datos -->
     <div class="controls">
-      <button @click="consultaGet" class="btn btn-primary" :disabled="isLoading">
-        {{ isLoading ? 'Cargando...' : 'Recargar Datos' }}
+      <button @click="consultaGet" class="btn btn-primary" :disabled="cargando">
+        {{ cargando ? 'Cargando...' : 'Recargar Datos' }}
       </button>
-      <button @click="changeChartType('bar')" class="btn btn-secondary">
+      <button 
+        @click="cambiarTipoGrafica('bar')" 
+        class="btn"
+        :class="tipoGraficaActual === 'bar' ? 'btn-active' : 'btn-secondary'"
+      >
         Barras
       </button>
-      <button @click="changeChartType('line')" class="btn btn-secondary">
-        Líneas
+      <button 
+        @click="cambiarTipoGrafica('pie')" 
+        class="btn"
+        :class="tipoGraficaActual === 'pie' ? 'btn-active' : 'btn-secondary'"
+      >
+        Pastel
       </button>
     </div>
 
+    <!-- MODIFICADO: Aviso para gráfico de pastel -->
+    <div v-if="tipoGraficaActual === 'pie' && camposDisponibles.length > 0" class="pie-notice">
+      <p><strong>Nota:</strong> El gráfico de pastel solo muestra un campo a la vez. Selecciona el campo que deseas visualizar.</p>
+    </div>
+
     <!-- Selector de campos (solo si hay datos) -->
-    <div v-if="availableFields.length > 0" class="field-selector">
+    <div v-if="camposDisponibles.length > 0" class="field-selector">
       <h3>Seleccionar campos para mostrar:</h3>
-      <div class="checkbox-group">
-        <label v-for="field in availableFields" :key="field" class="checkbox-label">
+      <div class="checkbox-grid">
+        <label v-for="field in camposDisponibles" :key="field" class="checkbox-card">
           <input 
             type="checkbox" 
             :value="field" 
-            :checked="selectedFields.includes(field)"
-            @change="toggleField(field)"
+            :checked="camposSeleccinados.includes(field)"
+            @change="intercalarCampos(field)"
+            :disabled="tipoGraficaActual === 'pie' && camposSeleccinados.includes(field) === false && camposSeleccinados.length >= 1"
+            class="checkbox-input"
           />
-          <span>{{ field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' ') }}</span>
+          <div class="checkbox-content">
+            <div class="checkbox-icon">
+              <svg v-if="camposSeleccinados.includes(field)" class="check-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <span class="checkbox-text">{{ field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' ') }}</span>
+          </div>
         </label>
       </div>
     </div>
     
     <!-- Contenedor de la gráfica -->
     <div class="chart-container">
-      <div v-if="isLoading" class="loading">
+      <div v-if="cargando" class="loading">
         <p>Cargando datos...</p>
       </div>
-      <div v-else-if="!apiData.length" class="no-data">
+      <div v-else-if="!datosApi.length" class="no-data">
         <p>No hay datos disponibles</p>
       </div>
       <canvas v-else ref="chartCanvas"></canvas>
     </div>
     
     <!-- Información adicional -->
-    <div v-if="apiData.length > 0" class="info-cards">
+    <div v-if="datosApi.length > 0" class="info-cards">
+      <div class="card">
+        <h3>Reporte Actual</h3>
+        <p class="number">{{ reporteSeleccionado }}</p>
+      </div>
+      <div class="card">
+        <h3>Tipo de Gráfica</h3>
+        <p class="chart-type">{{ tipoGraficaActual === 'bar' ? 'Barras' : 'Pastel' }}</p>
+      </div>
       <div class="card">
         <h3>Total Registros</h3>
-        <p class="number">{{ apiData.length }}</p>
+        <p class="number">{{ datosApi.length }}</p>
       </div>
       <div class="card">
         <h3>Campos Disponibles</h3>
-        <p class="number">{{ availableFields.length }}</p>
+        <p class="number">{{ camposDisponibles.length }}</p>
       </div>
       <div class="card">
         <h3>Campos Seleccionados</h3>
-        <p class="number">{{ selectedFields.length }}</p>
+        <p class="number">{{ camposSeleccinados.length }}</p>
       </div>
     </div>
 
     <!-- Debug info (remover en producción) -->
-    <div v-if="apiData.length > 0" class="debug-info">
+    <div v-if="datosApi.length > 0" class="debug-info">
       <h4>Vista previa de datos:</h4>
-      <pre>{{ JSON.stringify(apiData.slice(0, 2), null, 2) }}</pre>
+      <pre>{{ JSON.stringify(datosApi.slice(0, 2), null, 2) }}</pre>
     </div>
   </div>
 </template>
 
 <style scoped>
   .container {
-    max-width: 1200px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 40px;
+    background-color: #0ad2f5;
   }
 
   h1 {
@@ -282,6 +502,53 @@
     text-align: center;
     color: #333;
     margin-bottom: 30px;
+  }
+
+  /* NUEVO: Estilos para el selector de reporte */
+  .report-selector {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+    text-align: center;
+  }
+
+  .report-selector label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .select-reporte {
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    background: rgb(255, 255, 255);
+    color: #333;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+    width: 1170px;
+  }
+
+  .select-reporte:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+  }
+
+  .select-reporte:hover {
+    border-color: #007bff;
+  }
+
+  .pie-notice {
+    background: #fff3cd;
+    color: #856404;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    border-left: 4px solid #ffc107;
   }
 
   .controls {
@@ -294,7 +561,7 @@
 
   .btn {
     padding: 10px 20px;
-    border: none;
+    border: 2px solid black;
     border-radius: 5px;
     cursor: pointer;
     font-weight: 500;
@@ -324,6 +591,16 @@
     background-color: #545b62;
   }
 
+  /* NUEVO: Estilo para botón activo */
+  .btn-active {
+    background-color: #28a745;
+    color: white;
+  }
+
+  .btn-active:hover {
+    background-color: #218838;
+  }
+
   .field-selector {
     background: #f8f9fa;
     padding: 20px;
@@ -336,28 +613,112 @@
     color: #333;
   }
 
-  .checkbox-group {
-    display: flex;
-    flex-wrap: wrap;
+  .checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 15px;
   }
 
-  .checkbox-label {
+  .checkbox-card {
+    position: relative;
+    display: block;
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  .checkbox-card:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+    transform: translateY(-2px);
+  }
+
+  .checkbox-card:has(.checkbox-input:checked) {
+    border-color: #007bff;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3);
+  }
+
+  .checkbox-card:has(.checkbox-input:disabled) {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f8f9fa;
+  }
+
+  .checkbox-card:has(.checkbox-input:disabled):hover {
+    border-color: #e9ecef;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transform: none;
+  }
+
+  .checkbox-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .checkbox-content {
     display: flex;
     align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    padding: 5px 10px;
-    border-radius: 5px;
-    transition: background-color 0.2s;
+    gap: 12px;
   }
 
-  .checkbox-label:hover {
-    background-color: #e9ecef;
+  .checkbox-icon {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
   }
 
-  .checkbox-label input[type="checkbox"] {
-    margin: 0;
+  .checkbox-card:has(.checkbox-input:checked) .checkbox-icon {
+    background: white;
+    border-color: white;
+    color: #007bff;
+  }
+
+  .checkbox-card:has(.checkbox-input:disabled) .checkbox-icon {
+    background: #e9ecef;
+    border-color: #dee2e6;
+  }
+
+  .check-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.2s ease;
+  }
+
+  .checkbox-card:has(.checkbox-input:checked) .check-icon {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .checkbox-text {
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 1.4;
+    transition: color 0.3s ease;
+  }
+
+  .checkbox-card:has(.checkbox-input:checked) .checkbox-text {
+    color: white;
+    font-weight: 600;
+  }
+
+  .checkbox-card:has(.checkbox-input:disabled) .checkbox-text {
+    color: #6c757d;
   }
 
   .chart-container {
@@ -411,6 +772,15 @@
     color: #333;
   }
 
+  /* NUEVO: Estilo para el tipo de gráfica */
+  .card .chart-type {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #007bff;
+    text-transform: capitalize;
+  }
+
   .debug-info {
     background: #f8f9fa;
     padding: 15px;
@@ -451,8 +821,13 @@
       width: 200px;
     }
 
-    .checkbox-group {
-      flex-direction: column;
+    .checkbox-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .select-reporte {
+      min-width: 250px;
+      font-size: 14px;
     }
   }
 </style>

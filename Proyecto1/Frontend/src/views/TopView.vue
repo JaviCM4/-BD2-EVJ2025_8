@@ -1,5 +1,4 @@
 <script setup lang="ts">
-  import BarraNavegacion from '@/components/BarraNavegacion.vue';
   import { ref, onMounted, onUnmounted } from 'vue';
   import {Chart,CategoryScale,LinearScale,BarElement,BarController,LineController,LineElement,PointElement,Title,Tooltip,Legend,type ChartConfiguration} from 'chart.js';
 
@@ -113,8 +112,6 @@
 </script>
 
 <template>
-  <BarraNavegacion/>
-  
   <div class="container">
     <h1>Información de los Aspirantes</h1>
     
