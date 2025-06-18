@@ -682,6 +682,12 @@ router.get('/reporte13', async (req, res) => {
           },
           no_aprobados: {
             $sum: { $cond: [{ $eq: ["$aprobacion", false] }, 1, 0] }
+          },
+          publicos: {
+            $sum: { $cond: [{ $eq: ["$tipo_institucion_educativa", "PUBLICO"] }, 1, 0] }
+          },
+          privados: {
+            $sum: { $cond: [{ $eq: ["$tipo_institucion_educativa", "PRIVADO"] }, 1, 0] }
           }
         }
       },
@@ -697,6 +703,26 @@ router.get('/reporte13', async (req, res) => {
               { $multiply: [{ $divide: ["$aprobados", "$total"] }, 100] },
               2
             ]
+          },
+          institucion: {
+            "PUBLICO": {
+              cantidad: "$publicos",
+              porcentaje: {
+                $round: [
+                  { $multiply: [{ $divide: ["$publicos", "$total"] }, 100] },
+                  2
+                ]
+              }
+            },
+            "PRIVADO": {
+              cantidad: "$privados",
+              porcentaje: {
+                $round: [
+                  { $multiply: [{ $divide: ["$privados", "$total"] }, 100] },
+                  2
+                ]
+              }
+            }
           }
         }
       },
@@ -704,7 +730,7 @@ router.get('/reporte13', async (req, res) => {
     ]).toArray();
 
     res.json({
-      message: '✅ Tasa de aprobación por edad con aprobados y no aprobados',
+      message: '✅ Tasa de aprobación por edad con detalle de tipo de institución educativa',
       data: resultado
     });
   } catch (error) {
@@ -712,7 +738,6 @@ router.get('/reporte13', async (req, res) => {
     res.status(500).json({ error: 'Error al generar el reporte' });
   }
 });
-
 // reporte 14 
 router.get('/reporte14', async (req, res) => {
   try {
