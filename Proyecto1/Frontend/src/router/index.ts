@@ -1,7 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import InicioView from '../views/InicioView.vue'
-import AspiranteView from '@/views/AspiranteView.vue'
-import TopView from '@/views/TopView.vue'
+import GeneralView from '@/views/GeneralView.vue'
+import HistorialView from '@/views/HistorialView.vue'
+import AjustesView from '@/views/AjustesView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,14 +13,19 @@ const router = createRouter({
       component: InicioView,
     },
     {
-      path: '/aspirante',
-      name: 'Aspirante',
-      component: AspiranteView
+      path: '/general',
+      name: 'General',
+      component: GeneralView,
     },
     {
-      path: '/top',
-      name: 'Top',
-      component: TopView
+      path: '/historial',
+      name: 'Historial',
+      component: HistorialView,
+    },
+    {
+      path: '/ajustes',
+      name: 'Ajustes',
+      component: AjustesView,
     }
   ],
 })

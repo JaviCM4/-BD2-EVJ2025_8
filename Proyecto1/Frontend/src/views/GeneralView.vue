@@ -2,8 +2,9 @@
   import { ref, onMounted as montar, onUnmounted as desmontar } from 'vue';
   import {Chart,CategoryScale,LinearScale,BarElement,BarController,LineController,LineElement,PointElement,ArcElement,PieController,Title,Tooltip,Legend,type ChartConfiguration} from 'chart.js';
   import axios from 'axios';
+  import Zoom from 'chartjs-plugin-zoom';
 
-  Chart.register(CategoryScale,LinearScale,BarElement,BarController,LineController,LineElement,PointElement,ArcElement,PieController,Title,Tooltip,Legend);
+  Chart.register(CategoryScale,LinearScale,BarElement,BarController,LineController,LineElement,PointElement,ArcElement,PieController,Title,Tooltip,Legend,Zoom);
 
   // Referencias para el canvas y la instancia del chart
   const chartCanvas = ref<HTMLCanvasElement | null>(null);
@@ -66,75 +67,123 @@
     return result;
   };
 
-  // Función para procesar datos de la API automáticamente
+  // Reemplazar la función procesarDatos existente
   const procesarDatos = (data: any[]) => {
     if (!data || data.length === 0) return;
 
-    // Detectar automáticamente solo los campos numéricos
     const primerElemento = data[0];
-    const campos = Object.keys(primerElemento).filter(key => {
-      const value = primerElemento[key];
-      
-      // Solo incluir campos que sean números o strings que puedan convertirse a números
-      return typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value)) && value.trim() !== '');
-    });
     
-    camposDisponibles.value = campos;
+    // NUEVO: Lógica especial para el reporte 13
+    if (reporteSeleccionado.value === 13) {
+      // Primero identificar los campos de edad
+      const camposEdad = Object.keys(primerElemento).filter(key => 
+        key.toLowerCase().includes('edad') || 
+        key.toLowerCase().includes('age') ||
+        key.toLowerCase().includes('anos') ||
+        key.toLowerCase().includes('años')
+      );
+      
+      // Filtrar campos numéricos EXCLUYENDO los campos de edad
+      const campos = Object.keys(primerElemento).filter(key => {
+        const value = primerElemento[key];
+        // Excluir campos de edad del reporte 13
+        if (camposEdad.includes(key)) {
+          return false;
+        }
+        // Solo incluir campos numéricos
+        return typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value)) && value.trim() !== '');
+      });
+      
+      camposDisponibles.value = campos;
+    } else {
+      // Lógica original para otros reportes
+      const campos = Object.keys(primerElemento).filter(key => {
+        const value = primerElemento[key];
+        return typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value)) && value.trim() !== '');
+      });
+      
+      camposDisponibles.value = campos;
+    }
     
     // Si no hay campos seleccionados, seleccionar el primer campo numérico automáticamente
-    if (camposSeleccinados.value.length === 0 && campos.length > 0) {
-      camposSeleccinados.value = [campos[0]];
+    if (camposSeleccinados.value.length === 0 && camposDisponibles.value.length > 0) {
+      camposSeleccinados.value = [camposDisponibles.value[0]];
     }
     
     actualizarGrafica();
   };
 
-  // Función para determinar qué campos usar como etiqueta (label) - COMBINA TODOS LOS CAMPOS DE TEXTO
+  // Reemplazar la función obtenerEtiqueta existente
   const obtenerEtiqueta = () => {
     const firstItem = datosApi.value[0];
     
-    // Buscar todos los campos que sean de texto (no numéricos)
+    // NUEVO: Para el reporte 13, usar las edades como etiquetas
+    if (reporteSeleccionado.value === 13) {
+      return 'edad_label'; // Identificador especial para el reporte 13
+    }
+    
+    // Lógica original para otros reportes
     const labelFields = Object.keys(firstItem).filter(key => {
       const value = firstItem[key];
-      // Incluir strings que NO sean convertibles a números
       return typeof value === 'string' && (isNaN(Number(value)) || value.trim() === '');
     });
     
-    // Si no hay campos de texto, usar el primer campo disponible
     if (labelFields.length === 0) {
       return Object.keys(firstItem)[0];
     }
     
-    // Si solo hay un campo de texto, usarlo directamente
     if (labelFields.length === 1) {
       return labelFields[0];
     }
     
-    // Si hay múltiples campos de texto, combinarlos
     return 'combined_label';
   };
 
-  // NUEVA FUNCIÓN: Generar etiquetas combinadas
+  // Reemplazar la función generarEtiquetaCombinada existente
   const generarEtiquetaCombinada = (item: any) => {
-    const firstItem = datosApi.value[0];
+    // NUEVO: Lógica especial para el reporte 13
+    if (reporteSeleccionado.value === 13) {
+      // Buscar el campo que represente la edad (puede ser 'edad', 'age', etc.)
+      const camposEdad = Object.keys(item).filter(key => 
+        key.toLowerCase().includes('edad') || 
+        key.toLowerCase().includes('age') ||
+        key.toLowerCase().includes('anos') ||
+        key.toLowerCase().includes('años')
+      );
+      
+      if (camposEdad.length > 0) {
+        return `${item[camposEdad[0]]} años`;
+      }
+      
+      // Si no encuentra campo de edad, usar el primer campo de texto
+      const firstItem = datosApi.value[0];
+      const labelFields = Object.keys(firstItem).filter(key => {
+        const value = firstItem[key];
+        return typeof value === 'string' && (isNaN(Number(value)) || value.trim() === '');
+      });
+      
+      if (labelFields.length > 0) {
+        return item[labelFields[0]] || 'Sin datos';
+      }
+      
+      return `Edad ${datosApi.value.indexOf(item) + 1}`;
+    }
     
-    // Obtener todos los campos de texto
+    // Lógica original para otros reportes
+    const firstItem = datosApi.value[0];
     const labelFields = Object.keys(firstItem).filter(key => {
       const value = firstItem[key];
       return typeof value === 'string' && (isNaN(Number(value)) || value.trim() === '');
     });
     
-    // Si no hay campos de texto, usar índice
     if (labelFields.length === 0) {
       return `Item ${datosApi.value.indexOf(item) + 1}`;
     }
     
-    // Si solo hay un campo de texto, usarlo directamente
     if (labelFields.length === 1) {
       return item[labelFields[0]] || 'Sin datos';
     }
     
-    // Combinar todos los campos de texto con un separador
     const combinedLabel = labelFields
       .map(field => item[field] || 'SIN DATOS')
       .join(' - ');
@@ -235,6 +284,31 @@
             display: true,
             position: tipoGraficaActual.value === 'pie' ? 'right' : 'top'
           },
+          // NUEVO: Configuración de zoom
+          zoom: tipoGraficaActual.value !== 'pie' ? {
+            limits: {
+              y: {min: 0, max: 'original'},
+              x: {min: 'original', max: 'original'}
+            },
+            pan: {
+              enabled: true,
+              mode: 'xy',
+              threshold: 10,
+            },
+            zoom: {
+              wheel: {
+                enabled: true,
+              },
+              pinch: {
+                enabled: true
+              },
+              mode: 'xy',
+              sensitivity: 3,
+            }
+          } : undefined,
+
+
+
           // NUEVO: Configuración especial para tooltips en gráfico de pastel
           tooltip: tipoGraficaActual.value === 'pie' ? {
             callbacks: {
@@ -361,6 +435,27 @@
     actualizarGrafica();
   };
 
+  // Función para resetear el zoom
+  const resetZoom = () => {
+    if (instanciaGrafica && instanciaGrafica.resetZoom) {
+      instanciaGrafica.resetZoom();
+    }
+  };
+
+  // Función para hacer zoom in
+  const zoomIn = () => {
+    if (instanciaGrafica && instanciaGrafica.zoom) {
+      instanciaGrafica.zoom(1.1);
+    }
+  };
+
+  // Función para hacer zoom out
+  const zoomOut = () => {
+    if (instanciaGrafica && instanciaGrafica.zoom) {
+      instanciaGrafica.zoom(0.9);
+    }
+  };
+
   // Ciclo de Vida
   montar(() => {
     consultaGet();
@@ -458,6 +553,14 @@
       <canvas v-else ref="chartCanvas"></canvas>
     </div>
     
+
+    <!-- Agregar después de los botones existentes en .controls -->
+    <div class="zoom-controls" v-if="tipoGraficaActual === 'bar'">
+      <button @click="resetZoom" class="btn btn-secondary">
+        🔍 Reset Zoom
+      </button>
+    </div>
+
     <!-- Información adicional -->
     <div v-if="datosApi.length > 0" class="info-cards">
       <div class="card">
@@ -829,5 +932,18 @@
       min-width: 250px;
       font-size: 14px;
     }
+  }
+
+  .zoom-controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  .zoom-controls .btn {
+    font-size: 14px;
+    padding: 8px 16px;
   }
 </style>
