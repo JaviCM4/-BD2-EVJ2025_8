@@ -2,17 +2,59 @@
   import { ref, computed } from 'vue';
   import axios from 'axios';
 
+  // Definir interfaces para tipado fuerte
+  interface RegistroHistorial {
+    correlativo_aspirante: string;
+    sexo: string;
+    anio_nacimiento: number;
+    carrera_objetivo: string;
+    departamento_institucion_educativa: string;
+    municipio_institucion_educativa: string;
+    tipo_institucion_educativa: string;
+    anio_de_ingreso: number;
+    fecha_asignacion: string;
+    materia: string;
+    numero_de_fecha_de_evaluacion: number;
+    aprobacion: boolean;
+  }
+
+  interface EstudianteGeneral {
+    aspirante: string;
+    historial: MateriaHistorial[];
+  }
+
+  interface MateriaHistorial {
+    materia: string;
+    intentos: number;
+    aprobados: number;
+  }
+
+  interface HistorialGeneral {
+    message: string;
+    total_estudiantes: number;
+    estudiantes: EstudianteGeneral[];
+  }
+
+  interface EstudianteProcesado {
+    aspirante: string;
+    totalIntentos: number;
+    totalAprobados: number;
+    porcentajeExito: number;
+    materias: number;
+    historial: MateriaHistorial[];
+  }
+
   // Estados reactivos existentes
   const cargando = ref(false);
   const carnetEstudiante = ref('');
-  const datosHistorial = ref<any[]>([]);
+  const datosHistorial = ref<RegistroHistorial[]>([]);
   const mensajeApi = ref('');
   const mostrarResultados = ref(false);
   const error = ref('');
 
   // Nuevos estados para el historial general
   const cargandoGeneral = ref(false);
-  const datosHistorialGeneral = ref<any>({});
+  const datosHistorialGeneral = ref<HistorialGeneral>({} as HistorialGeneral);
   const mostrarModalGeneral = ref(false);
   const errorGeneral = ref('');
 
@@ -57,19 +99,19 @@
   });
 
   // Computed para procesar datos del historial general
-  const datosHistorialProcesados = computed(() => {
+  const datosHistorialProcesados = computed((): EstudianteProcesado[] => {
     if (!datosHistorialGeneral.value.estudiantes) return [];
     
-    return datosHistorialGeneral.value.estudiantes.map((estudiante: any) => {
-      const totalIntentos = estudiante.historial.reduce((sum: number, materia: any) => sum + materia.intentos, 0);
-      const totalAprobados = estudiante.historial.reduce((sum: number, materia: any) => sum + materia.aprobados, 0);
-      const porcentajeExito = totalIntentos > 0 ? ((totalAprobados / totalIntentos) * 100).toFixed(1) : '0.0';
+    return datosHistorialGeneral.value.estudiantes.map((estudiante: EstudianteGeneral): EstudianteProcesado => {
+      const totalIntentos = estudiante.historial.reduce((sum: number, materia: MateriaHistorial) => sum + materia.intentos, 0);
+      const totalAprobados = estudiante.historial.reduce((sum: number, materia: MateriaHistorial) => sum + materia.aprobados, 0);
+      const porcentajeExito = totalIntentos > 0 ? ((totalAprobados / totalIntentos) * 100) : 0;
       
       return {
         aspirante: estudiante.aspirante,
         totalIntentos,
         totalAprobados,
-        porcentajeExito: parseFloat(porcentajeExito),
+        porcentajeExito: parseFloat(porcentajeExito.toFixed(1)),
         materias: estudiante.historial.length,
         historial: estudiante.historial
       };
@@ -301,7 +343,7 @@
               </v-chip>
             </v-card-text>
 
-            <!-- Tabla de historial general -->
+            <!-- Tabla de historial general con tipado fuerte -->
             <v-data-table
               :headers="headersGeneral"
               :items="datosHistorialProcesados"
@@ -309,25 +351,25 @@
               class="elevation-0"
               hover
             >
-              <template #item.aspirante="{ item }">
+              <template #item.aspirante="{ item }: { item: EstudianteProcesado }">
                 <v-chip color="indigo" variant="tonal" size="small">
                   {{ item.aspirante.substring(0, 10) }}...
                 </v-chip>
               </template>
 
-              <template #item.totalIntentos="{ item }">
+              <template #item.totalIntentos="{ item }: { item: EstudianteProcesado }">
                 <v-chip color="blue" variant="tonal" size="small">
                   {{ item.totalIntentos }}
                 </v-chip>
               </template>
 
-              <template #item.totalAprobados="{ item }">
+              <template #item.totalAprobados="{ item }: { item: EstudianteProcesado }">
                 <v-chip color="green" variant="tonal" size="small">
                   {{ item.totalAprobados }}
                 </v-chip>
               </template>
 
-              <template #item.porcentajeExito="{ item }">
+              <template #item.porcentajeExito="{ item }: { item: EstudianteProcesado }">
                 <v-chip 
                   :color="obtenerColorPorcentaje(item.porcentajeExito)"
                   variant="tonal"
@@ -337,13 +379,13 @@
                 </v-chip>
               </template>
 
-              <template #item.materias="{ item }">
+              <template #item.materias="{ item }: { item: EstudianteProcesado }">
                 <v-chip color="purple" variant="tonal" size="small">
                   {{ item.materias }}
                 </v-chip>
               </template>
 
-              <template #item.acciones="{ item }">
+              <template #item.acciones="{ item }: { item: EstudianteProcesado }">
                 <v-btn
                   @click="buscarAspiranteDesdeGeneral(item.aspirante)"
                   color="primary"
@@ -356,7 +398,7 @@
               </template>
 
               <!-- Expandir fila para mostrar detalles por materia -->
-              <template #expanded-row="{ item }">
+              <template #expanded-row="{ item }: { item: EstudianteProcesado }">
                 <tr>
                   <td colspan="6" class="pa-4">
                     <v-card variant="tonal">
@@ -406,18 +448,6 @@
         </v-card-text>
       </v-card>
     </v-dialog>
-
-    <!-- Mensaje de la API -->
-    <v-row v-if="mensajeApi && mostrarResultados" class="mt-4">
-      <v-col cols="12">
-        <v-alert
-          type="success"
-          variant="tonal"
-          :text="mensajeApi"
-          closable
-        />
-      </v-col>
-    </v-row>
 
     <!-- Información del Aspirante -->
     <v-row v-if="datosAspirante && mostrarResultados" class="mt-4">
@@ -570,7 +600,7 @@
       </v-col>
     </v-row>
 
-    <!-- Tabla de Historial -->
+    <!-- Tabla de Historial con tipado fuerte -->
     <v-row v-if="mostrarResultados && datosHistorial.length > 0" class="mt-4">
       <v-col cols="12">
         <v-card elevation="2">
@@ -586,25 +616,25 @@
             class="elevation-0"
             hover
           >
-            <template #item.fecha_asignacion="{ item }">
+            <template #item.fecha_asignacion="{ item }: { item: RegistroHistorial }">
               <v-chip color="blue-grey" variant="tonal" size="small">
                 {{ formatearFecha(item.fecha_asignacion) }}
               </v-chip>
             </template>
             
-            <template #item.materia="{ item }">
+            <template #item.materia="{ item }: { item: RegistroHistorial }">
               <v-chip color="indigo" variant="tonal" size="small">
                 {{ item.materia }}
               </v-chip>
             </template>
             
-            <template #item.numero_de_fecha_de_evaluacion="{ item }">
+            <template #item.numero_de_fecha_de_evaluacion="{ item }: { item: RegistroHistorial }">
               <v-chip color="orange" variant="tonal" size="small">
                 Intento {{ item.numero_de_fecha_de_evaluacion }}
               </v-chip>
             </template>
             
-            <template #item.aprobacion="{ item }">
+            <template #item.aprobacion="{ item }: { item: RegistroHistorial }">
               <v-chip
                 :color="obtenerColorEstado(item.aprobacion)"
                 variant="tonal"
@@ -617,7 +647,7 @@
               </v-chip>
             </template>
             
-            <template #item.anio_de_ingreso="{ item }">
+            <template #item.anio_de_ingreso="{ item }: { item: RegistroHistorial }">
               <span class="font-weight-medium">{{ item.anio_de_ingreso }}</span>
             </template>
             
@@ -652,6 +682,15 @@
 </template>
 
 <style scoped>
+  .pa-6 {
+    margin: 0 auto;
+    padding: 40px;
+    background-image: url("https://i0.wp.com/i.pinimg.com/originals/98/eb/cb/98ebcbc2ca2cec8fdce270c00482da5a.jpg");
+    background-size: cover;
+    background-position: center;
+    min-height: 100vh;
+  }
+
   .v-card {
     transition: all 0.3s ease;
   }

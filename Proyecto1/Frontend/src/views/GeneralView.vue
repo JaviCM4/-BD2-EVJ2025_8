@@ -17,6 +17,217 @@
   const camposDisponibles = ref<string[]>([]);
   const mensajeApi = ref<string>(''); // Para mostrar el mensaje de la API
   const tipoGraficaActual = ref<'bar' | 'pie'>('bar'); // NUEVO: Estado para el tipo de gráfica
+  const consultas = {
+                      reporte1: `
+                    db.Aspirantes.aggregate([
+                      { $group: { _id: '$tipo_institucion_educativa', total: { $sum: 1 } } },
+                      { $sort: { total: -1 } }
+                    ])`,
+
+                      reporte2: `
+                    db.Aspirantes.aggregate([
+                      { $match: { aprobacion: true } },
+                      { $group: { _id: '$materia', total_aprobados: { $sum: 1 } } },
+                      { $sort: { total_aprobados: -1 } }
+                    ])`,
+
+                      reporte3: `
+                    db.Aspirantes.aggregate([
+                      { $match: { aprobacion: true } },
+                      { $group: {
+                          _id: { carrera: '$carrera_objetivo', anio: '$anio_de_ingreso' },
+                          total_aprobados: { $sum: 1 }
+                      }},
+                      { $sort: { '_id.anio': 1, total_aprobados: -1 } }
+                    ])`,
+
+                      reporte4: `
+                    db.Aspirantes.aggregate([
+                      { $group: {
+                          _id: '$materia',
+                          total: { $sum: 1 },
+                          aprobados: { $sum: { $cond: [{ $eq: ['$aprobacion', true] }, 1, 0] } },
+                          no_aprobados: { $sum: { $cond: [{ $eq: ['$aprobacion', false] }, 1, 0] } }
+                      }},
+                      { $project: {
+                          materia: '$_id',
+                          _id: 0,
+                          total: 1,
+                          aprobados: 1,
+                          no_aprobados: 1,
+                          porcentaje_aprobacion: {
+                            $round: [{ $multiply: [{ $divide: ['$aprobados', '$total'] }, 100] }, 2]
+                          }
+                      }},
+                      { $sort: { porcentaje_aprobacion: -1 } }
+                    ])`,
+
+                      reporte5: `
+                    db.Aspirantes.aggregate([
+                      { $match: { anio_nacimiento: { $type: "number", $gte: 1900, $lte: 2025 } } },
+                      { $addFields: { edad: { $subtract: [2025, "$anio_nacimiento"] } } },
+                      { $group: {
+                          _id: "$carrera_objetivo",
+                          promedio_edad: { $avg: "$edad" },
+                          cantidad: { $sum: 1 }
+                      }},
+                      { $project: {
+                          _id: 0,
+                          carrera: "$_id",
+                          promedio_edad: { $round: ["$promedio_edad", 2] },
+                          cantidad: 1
+                      }},
+                      { $sort: { promedio_edad: -1 } }
+                    ])`,
+
+                      reporte7: `
+                    db.Aspirantes.aggregate([
+                      { $match: {
+                          aprobacion: true,
+                          anio_nacimiento: { $type: "number", $gte: 1900, $lte: 2025 }
+                      }},
+                      { $addFields: { edad: { $subtract: [2025, "$anio_nacimiento"] } } },
+                      { $group: {
+                          _id: { carrera: "$carrera_objetivo", tipo_institucion: "$tipo_institucion_educativa" },
+                          promedio_edad: { $avg: "$edad" },
+                          cantidad: { $sum: 1 }
+                      }},
+                      { $project: {
+                          _id: 0,
+                          carrera: "$_id.carrera",
+                          tipo_institucion: "$_id.tipo_institucion",
+                          promedio_edad: { $round: ["$promedio_edad", 2] },
+                          cantidad: 1
+                      }},
+                      { $sort: { carrera: 1, tipo_institucion: 1 } }
+                    ])`,
+
+                      reporte8: `
+                    db.Aspirantes.aggregate([
+                      { $match: { aprobacion: true } },
+                      { $group: {
+                          _id: {
+                            municipio: '$municipio_institucion_educativa',
+                            carrera: '$carrera_objetivo'
+                          },
+                          total_aprobados: { $sum: 1 }
+                      }},
+                      { $project: {
+                          _id: 0,
+                          municipio: '$_id.municipio',
+                          carrera: '$_id.carrera',
+                          total_aprobados: 1
+                      }},
+                      { $sort: { municipio: 1, total_aprobados: -1 } }
+                    ])`,
+
+                      reporte9: `
+                    db.Aspirantes.aggregate([
+                      { $match: { tipo_institucion_educativa: 'PUBLICO' } },
+                      { $addFields: { mes_evaluacion: { $substrBytes: ['$fecha_asignacion', 5, 2] } } },
+                      { $group: {
+                          _id: { mes: '$mes_evaluacion', materia: '$materia' },
+                          cantidad_evaluaciones: { $sum: 1 }
+                      }},
+                      { $project: {
+                          _id: 0,
+                          mes: '$_id.mes',
+                          materia: '$_id.materia',
+                          cantidad_evaluaciones: 1
+                      }},
+                      { $sort: { mes: 1, materia: 1 } }
+                    ])`,
+
+                      reporte10: `
+                    db.Aspirantes.aggregate([
+                      { $match: { anio_nacimiento: { $type: "number" } } },
+                      { $addFields: { edad: { $subtract: [2025, "$anio_nacimiento"] } } },
+                      { $match: { edad: { $gte: 16, $lte: 18 } } },
+                      { $group: { _id: "$carrera_objetivo", total_aspirantes: { $sum: 1 } } },
+                      { $sort: { total_aspirantes: -1 } },
+                      { $limit: 5 },
+                      { $project: { _id: 0, carrera: "$_id", total_aspirantes: 1 } }
+                    ])`,
+                      reporte12: `
+                    db.Aspirantes.aggregate([
+                      { $group: {
+                          _id: { sexo: "$sexo", tipo: "$tipo_institucion_educativa" },
+                          total: { $sum: 1 }
+                      }},
+                      { $project: {
+                          _id: 0,
+                          sexo: "$_id.sexo",
+                          tipo_institucion_educativa: "$_id.tipo",
+                          total: 1
+                      }},
+                      { $sort: { sexo: 1, tipo_institucion_educativa: 1 } }
+                    ])`,
+
+                      reporte13: `
+                    db.Aspirantes.aggregate([
+                      { $match: { anio_nacimiento: { $type: "number", $gte: 1900, $lte: 2025 } } },
+                      { $addFields: { edad: { $subtract: [2025, "$anio_nacimiento"] } } },
+                      { $group: {
+                          _id: "$edad",
+                          total: { $sum: 1 },
+                          aprobados: { $sum: { $cond: [{ $eq: ["$aprobacion", true] }, 1, 0] } },
+                          no_aprobados: { $sum: { $cond: [{ $eq: ["$aprobacion", false] }, 1, 0] } },
+                          publicos: { $sum: { $cond: [{ $eq: ["$tipo_institucion_educativa", "PUBLICO"] }, 1, 0] } },
+                          privados: { $sum: { $cond: [{ $eq: ["$tipo_institucion_educativa", "PRIVADO"] }, 1, 0] } }
+                      }},
+                      { $project: {
+                          _id: 0,
+                          edad: "$_id",
+                          total: 1,
+                          aprobados: 1,
+                          no_aprobados: 1,
+                          porcentaje_aprobacion: {
+                            $round: [{ $multiply: [{ $divide: ["$aprobados", "$total"] }, 100] }, 2]
+                          },
+                          institucion: {
+                            PUBLICO: {
+                              cantidad: "$publicos",
+                              porcentaje: {
+                                $round: [{ $multiply: [{ $divide: ["$publicos", "$total"] }, 100] }, 2]
+                              }
+                            },
+                            PRIVADO: {
+                              cantidad: "$privados",
+                              porcentaje: {
+                                $round: [{ $multiply: [{ $divide: ["$privados", "$total"] }, 100] }, 2]
+                              }
+                            }
+                          }
+                      }},
+                      { $sort: { edad: 1 } }
+                    ])`,
+
+                      reporte14: `
+                    db.Aspirantes.aggregate([
+                      { $group: {
+                          _id: { aspirante: "$correlativo_aspirante", materia: "$materia" },
+                          intentos_por_aspirante: { $sum: 1 }
+                      }},
+                      { $group: {
+                          _id: "$_id.materia",
+                          promedio_intentos: { $avg: "$intentos_por_aspirante" }
+                      }},
+                      { $project: {
+                          _id: 0,
+                          materia: "$_id",
+                          promedio_intentos: { $round: ["$promedio_intentos", 2] }
+                      }},
+                      { $sort: { promedio_intentos: -1 } }
+                    ])`,
+
+                    reporte16: `
+                    db.Aspirantes.aggregate([
+                      { $match: { numero_de_fecha_de_evaluacion: 1, aprobacion: false } },
+                      { $group: { _id: '$carrera_objetivo', aspirantes_reprobados: { $sum: 1 } } },
+                      { $sort: { aspirantes_reprobados: -1 } }
+                    ])`
+  };
+
   
   // NUEVO: Estado para el reporte seleccionado
   const reporteSeleccionado = ref<number>(1);
@@ -28,16 +239,13 @@
     { valor: 3, nombre: 'Reporte 3 - Aprobados por carrera y año' },
     { valor: 4, nombre: 'Reporte 4 - Porcentaje de aprobación por materia' },
     { valor: 5, nombre: 'Reporte 5 - Promedio de edad por carrera' },
-    { valor: 6, nombre: 'Reporte 6 - Creación de colección auxiliar ' },
     { valor: 7, nombre: 'Reporte 7 - Promedio de edad de los aspirantes que aprobaron por carrera y tipo de institución' },
     { valor: 8, nombre: 'Reporte 8 - Distribución de aprobados por municipio y carrera objetivo' },
     { valor: 9, nombre: 'Reporte 9 - Cantidad de evaluaciones por mes y materia, sólo para instituciones públicas' },
     { valor: 10, nombre: 'Reporte 10 - Top 5 carreras más demandadas por aspirantes entre 16 y 18 años' },
-    { valor: 11, nombre: 'Reporte 11 - Historial de desempeño por aspirante con desglose de intentos por materia y resultados ' },
     { valor: 12, nombre: 'Reporte 12 - Distribución por sexo y tipo de institución' },
     { valor: 13, nombre: 'Reporte 13 - Tasa de aprobación por edad ' },
     { valor: 14, nombre: 'Reporte 14 - Número promedio de intentos por materia' },
-    { valor: 15, nombre: 'Reporte 15 - Historial completo de un aspirante ' },
     { valor: 16, nombre: 'Reporte 16 - Carreras con más aspirantes reprobados en primer intento' }
   ]);
 
@@ -587,18 +795,21 @@
 
     <!-- Debug info (remover en producción) -->
     <div v-if="datosApi.length > 0" class="debug-info">
-      <h4>Vista previa de datos:</h4>
-      <pre>{{ JSON.stringify(datosApi.slice(0, 2), null, 2) }}</pre>
+      <h4>Consulta utilizada:</h4>
+      <pre>{{ consultas['reporte' + reporteSeleccionado as keyof typeof consultas] }}</pre>
     </div>
   </div>
 </template>
 
 <style scoped>
-  .container {
-    margin: 0 auto;
-    padding: 40px;
-    background-color: #0ad2f5;
-  }
+.container {
+  margin: 0 auto;
+  padding: 40px;
+  background-image: url("https://i0.wp.com/i.pinimg.com/originals/98/eb/cb/98ebcbc2ca2cec8fdce270c00482da5a.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
 
   h1 {
     margin-top: 80px;

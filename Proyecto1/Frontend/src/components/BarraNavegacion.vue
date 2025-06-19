@@ -9,13 +9,6 @@
 
         <v-app-bar-title>Usac</v-app-bar-title>
         <v-spacer></v-spacer>
-
-        <v-btn icon>
-            <v-icon>mdi-magnify</v-icon>
-        </v-btn>
-        <v-btn icon>
-            <v-icon>mdi-settings-box</v-icon>
-        </v-btn>
     </v-app-bar>
 
     <v-navigation-drawer v-model="drawer" temporary>
@@ -25,6 +18,7 @@
             <v-list-item to="/" title="Inicio" prepend-icon="mdi-home" router></v-list-item>
             <v-list-item to="/general" title="Estadísticas Generales" prepend-icon="mdi-chart-bar" route></v-list-item>
             <v-list-item to="/historial" title="Historial Aspirante" prepend-icon="mdi-history" route></v-list-item>
+            <v-list-item to="/ajustes" title="Ajustes" prepend-icon="mdi-wrench" route></v-list-item>
         </v-list>
 
     </v-navigation-drawer>
