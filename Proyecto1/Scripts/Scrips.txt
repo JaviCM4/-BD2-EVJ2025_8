@@ -1,0 +1,544 @@
+//reporte 1
+
+bd.Aspirantes.aggregate([
+      {
+        $group: {
+          _id: '$tipo_institucion_educativa',
+          total: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { total: -1 }
+      }
+    ]);
+
+// reporte2
+db.Aspirantes.aggregate([
+      { $match: { aprobacion: true } },
+      {
+        $group: {
+          _id: '$materia',
+          total_aprobados: { $sum: 1 }
+        }
+      },
+      { $sort: { total_aprobados: -1 } }
+    ]);
+
+
+// reporte3
+bd.Aspirantes.aggregate([
+      { $match: { aprobacion: true } },
+      {
+        $group: {
+          _id: {
+            carrera: '$carrera_objetivo',
+            anio: '$anio_de_ingreso'
+          },
+          total_aprobados: { $sum: 1 }
+        }
+      },
+      {
+        $sort: {
+          '_id.anio': 1,
+          'total_aprobados': -1
+        }
+      }
+    ])
+
+
+// reporte4
+bd.Aspirantes.aggregate([
+      {
+        $group: {
+          _id: '$materia',
+          total: { $sum: 1 },
+          aprobados: {
+            $sum: {
+              $cond: [{ $eq: ['$aprobacion', true] }, 1, 0]
+            }
+          },
+          no_aprobados: {
+            $sum: {
+              $cond: [{ $eq: ['$aprobacion', false] }, 1, 0]
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          materia: '$_id',
+          _id: 0,
+          total: 1,
+          aprobados: 1,
+          no_aprobados: 1,
+          porcentaje_aprobacion: {
+            $round: [{ $multiply: [{ $divide: ['$aprobados', '$total'] }, 100] }, 2]
+          }
+        }
+      },
+      {
+        $sort: { porcentaje_aprobacion: -1 }
+      }
+    ]);
+
+
+// reporte 5
+bd.Aspirantes.aggregate([
+      {
+        $match: {
+          anio_nacimiento: { $type: "number", $gte: 1900, $lte: 2025 }
+        }
+      },
+      {
+        $addFields: {
+          edad: { $subtract: [2025, "$anio_nacimiento"] }
+        }
+      },
+      {
+        $group: {
+          _id: "$carrera_objetivo",
+          promedio_edad: { $avg: "$edad" },
+          cantidad: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          carrera: "$_id",
+          promedio_edad: { $round: ["$promedio_edad", 2] },
+          cantidad: 1
+        }
+      },
+      { $sort: { promedio_edad: -1 } }
+    ]);
+
+// reporte6
+
+ // 1. Aspirantes por tipo de institución educativa
+    const reporte1 = await collection.aggregate([
+      { $group: { _id: '$tipo_institucion_educativa', total: { $sum: 1 } } },
+      { $sort: { total: -1 } }
+    ]).toArray();
+
+    // 2. Cantidad de aprobados por materia
+    const reporte2 = await collection.aggregate([
+      { $match: { aprobacion: true } },
+      { $group: { _id: '$materia', total_aprobados: { $sum: 1 } } },
+      { $sort: { total_aprobados: -1 } }
+    ]).toArray();
+
+    // 3. Aprobados por carrera y año
+    const reporte3 = await collection.aggregate([
+      { $match: { aprobacion: true } },
+      {
+        $group: {
+          _id: { carrera: '$carrera_objetivo', anio: '$anio_de_ingreso' },
+          total_aprobados: { $sum: 1 }
+        }
+      },
+      { $sort: { '_id.anio': 1, total_aprobados: -1 } }
+    ]).toArray();
+
+    // 4. Porcentaje de aprobación por materia
+    const reporte4 = await collection.aggregate([
+      {
+        $group: {
+          _id: '$materia',
+          total: { $sum: 1 },
+          aprobados: { $sum: { $cond: [{ $eq: ['$aprobacion', true] }, 1, 0] } },
+          no_aprobados: { $sum: { $cond: [{ $eq: ['$aprobacion', false] }, 1, 0] } }
+        }
+      },
+      {
+        $project: {
+          materia: '$_id',
+          _id: 0,
+          total: 1,
+          aprobados: 1,
+          no_aprobados: 1,
+          porcentaje_aprobacion: {
+            $round: [{ $multiply: [{ $divide: ['$aprobados', '$total'] }, 100] }, 2]
+          }
+        }
+      },
+      { $sort: { porcentaje_aprobacion: -1 } }
+    ]).toArray();
+
+    // 5. Promedio de edad por carrera
+    const reporte5 = await collection.aggregate([
+      { $match: { anio_nacimiento: { $type: "number", $gte: 1900, $lte: 2025 } } },
+      { $addFields: { edad: { $subtract: [2025, "$anio_nacimiento"] } } },
+      {
+        $group: {
+          _id: "$carrera_objetivo",
+          promedio_edad: { $avg: "$edad" },
+          cantidad: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          carrera: "$_id",
+          promedio_edad: { $round: ["$promedio_edad", 2] },
+          cantidad: 1
+        }
+      },
+      { $sort: { promedio_edad: -1 } }
+    ]).toArray();
+
+    // Armar resumen
+    const resumen = {
+      fecha_actualizacion: new Date(),
+      aspirantes_por_tipo_institucion: reporte1.map(item => ({
+        tipo_institucion_educativa: item._id,
+        total_aspirantes: item.total
+      })),
+      aprobados_por_materia: reporte2.map(item => ({
+        materia: item._id,
+        total_aprobados: item.total_aprobados
+      })),
+      aprobados_por_carrera_anio: reporte3.map(item => ({
+        carrera: item._id.carrera,
+        anio: item._id.anio,
+        total_aprobados: item.total_aprobados
+      })),
+      porcentaje_aprobacion_por_materia: reporte4,
+      promedio_edad_por_carrera: reporte5
+    };
+
+    // Guardar o actualizar el resumen en la colección resumen_carrera
+    await resumenCollection.updateOne(
+      { _id: 'resumen_general' },
+      { $set: resumen },
+      { upsert: true }
+    );
+
+
+//reporte7
+bd.Aspirantes.aggregate([
+      {
+        $match: {
+          aprobacion: true,
+          anio_nacimiento: { $type: "number", $gte: 1900, $lte: 2025 }
+        }
+      },
+      {
+        $addFields: {
+          edad: { $subtract: [2025, "$anio_nacimiento"] }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            carrera: "$carrera_objetivo",
+            tipo_institucion: "$tipo_institucion_educativa"
+          },
+          promedio_edad: { $avg: "$edad" },
+          cantidad: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          carrera: "$_id.carrera",
+          tipo_institucion: "$_id.tipo_institucion",
+          promedio_edad: { $round: ["$promedio_edad", 2] },
+          cantidad: 1
+        }
+      },
+      { $sort: { carrera: 1, tipo_institucion: 1 } }
+    ]);
+
+
+//reporte8
+bd.Aspirantes.aggregate([
+      {
+        $match: { aprobacion: true }
+      },
+      {
+        $group: {
+          _id: {
+            municipio: '$municipio_institucion_educativa',
+            carrera: '$carrera_objetivo'
+          },
+          total_aprobados: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          municipio: '$_id.municipio',
+          carrera: '$_id.carrera',
+          total_aprobados: 1
+        }
+      },
+      {
+        $sort: {
+          municipio: 1,
+          total_aprobados: -1
+        }
+      }
+    ]);
+
+//reporte9
+bd.Aspirantes.aggregate([
+      {
+        $match: {
+          tipo_institucion_educativa: 'PUBLICO'
+        }
+      },
+      {
+        $addFields: {
+          mes_evaluacion: { $substrBytes: ['$fecha_asignacion', 5, 2] } // extrae mes MM
+        }
+      },
+      {
+        $group: {
+          _id: {
+            mes: '$mes_evaluacion',
+            materia: '$materia'
+          },
+          cantidad_evaluaciones: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          mes: '$_id.mes',
+          materia: '$_id.materia',
+          cantidad_evaluaciones: 1
+        }
+      },
+      {
+        $sort: { mes: 1, materia: 1 }
+      }
+    ]);
+
+
+//reporte10
+collection.aggregate([
+      {
+        $match: {
+          anio_nacimiento: { $type: "number" }
+        }
+      },
+      {
+        $addFields: {
+          edad: { $subtract: [currentYear, "$anio_nacimiento"] }
+        }
+      },
+      {
+        $match: {
+          edad: { $gte: 16, $lte: 18 }
+        }
+      },
+      {
+        $group: {
+          _id: "$carrera_objetivo",
+          total_aspirantes: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { total_aspirantes: -1 }
+      },
+      {
+        $limit: 5
+      },
+      {
+        $project: {
+          _id: 0,
+          carrera: "$_id",
+          total_aspirantes: 1
+        }
+      }
+    ]);
+
+//reporte11
+bd.Aspirantes.aggregate([
+      {
+        $group: {
+          _id: {
+            aspirante: "$correlativo_aspirante",
+            materia: "$materia"
+          },
+          total_intentos: { $sum: 1 },
+          total_aprobados: {
+            $sum: {
+              $cond: [{ $eq: ["$aprobacion", true] }, 1, 0]
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id.aspirante",
+          historial: {
+            $push: {
+              materia: "$_id.materia",
+              intentos: "$total_intentos",
+              aprobados: "$total_aprobados"
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total_estudiantes: { $sum: 1 },
+          estudiantes: {
+            $push: {
+              aspirante: "$_id",
+              historial: "$historial"
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          total_estudiantes: 1,
+          estudiantes: 1
+        }
+      }
+    ]);
+
+//reporte12
+bd.Aspirantes.aggregate([
+      {
+        $group: {
+          _id: {
+            sexo: "$sexo",
+            tipo: "$tipo_institucion_educativa"
+          },
+          total: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          sexo: "$_id.sexo",
+          tipo_institucion_educativa: "$_id.tipo",
+          total: 1
+        }
+      },
+      { $sort: { sexo: 1, tipo_institucion_educativa: 1 } }
+    ]);
+
+//reporte13
+bd.Aspirantes.aggregate([
+      {
+        $match: {
+          anio_nacimiento: { $type: "number", $gte: 1900, $lte: 2025 }
+        }
+      },
+      {
+        $addFields: {
+          edad: { $subtract: [2025, "$anio_nacimiento"] }
+        }
+      },
+      {
+        $group: {
+          _id: "$edad",
+          total: { $sum: 1 },
+          aprobados: {
+            $sum: { $cond: [{ $eq: ["$aprobacion", true] }, 1, 0] }
+          },
+          no_aprobados: {
+            $sum: { $cond: [{ $eq: ["$aprobacion", false] }, 1, 0] }
+          },
+          publicos: {
+            $sum: { $cond: [{ $eq: ["$tipo_institucion_educativa", "PUBLICO"] }, 1, 0] }
+          },
+          privados: {
+            $sum: { $cond: [{ $eq: ["$tipo_institucion_educativa", "PRIVADO"] }, 1, 0] }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          edad: "$_id",
+          total: 1,
+          aprobados: 1,
+          no_aprobados: 1,
+          porcentaje_aprobacion: {
+            $round: [
+              { $multiply: [{ $divide: ["$aprobados", "$total"] }, 100] },
+              2
+            ]
+          },
+          institucion: {
+            "PUBLICO": {
+              cantidad: "$publicos",
+              porcentaje: {
+                $round: [
+                  { $multiply: [{ $divide: ["$publicos", "$total"] }, 100] },
+                  2
+                ]
+              }
+            },
+            "PRIVADO": {
+              cantidad: "$privados",
+              porcentaje: {
+                $round: [
+                  { $multiply: [{ $divide: ["$privados", "$total"] }, 100] },
+                  2
+                ]
+              }
+            }
+          }
+        }
+      },
+      { $sort: { edad: 1 } }
+    ]);
+
+
+//reporte14
+bd.Aspirantes.aggregate([
+      {
+        $group: {
+          _id: {
+            aspirante: "$correlativo_aspirante",
+            materia: "$materia"
+          },
+          intentos_por_aspirante: { $sum: 1 }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id.materia",
+          promedio_intentos: { $avg: "$intentos_por_aspirante" }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          materia: "$_id",
+          promedio_intentos: { $round: ["$promedio_intentos", 2] }
+        }
+      },
+      { $sort: { promedio_intentos: -1 } }
+    ]);
+
+//reporte15
+    bd.Aspirantes.find({ correlativo_aspirante: 'aspiranteId' });
+
+//reporte16
+bd.Aspirantes.aggregate([
+      {
+        $match: {
+          numero_de_fecha_de_evaluacion: 1,
+          aprobacion: false
+        }
+      },
+      {
+        $group: {
+          _id: '$carrera_objetivo',
+          aspirantes_reprobados: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { aspirantes_reprobados: -1 }
+      }
+    ]);
+
