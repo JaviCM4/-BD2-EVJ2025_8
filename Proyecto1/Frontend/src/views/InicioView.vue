@@ -233,27 +233,27 @@ const estadisticas = [
 </template>
 
 <style scoped>
-.main-background {
-  margin: 0 auto;
-  padding: 40px;
-  background-image: url("https://i0.wp.com/i.pinimg.com/originals/98/eb/cb/98ebcbc2ca2cec8fdce270c00482da5a.jpg");
-  background-size: cover;
-  background-position: center;
-}
+  .main-background {
+    margin: 0 auto;
+    padding: 40px;
+    background-image: url("https://i0.wp.com/i.pinimg.com/originals/98/eb/cb/98ebcbc2ca2cec8fdce270c00482da5a.jpg");
+    background-size: cover;
+    background-position: center;
+  }
 
-.v-card-title {
-  font-weight: bold;
-}
+  .v-card-title {
+    font-weight: bold;
+  }
 
-.bg-gradient-overlay {
-  background: linear-gradient(45deg, rgba(0,77,64,0.8) 0%, rgba(0,77,64,0.6) 100%);
-}
+  .bg-gradient-overlay {
+    background: linear-gradient(45deg, rgba(0,77,64,0.8) 0%, rgba(0,77,64,0.6) 100%);
+  }
 
-.text-teal {
-  color: #00695c !important;
-}
+  .text-teal {
+    color: #00695c !important;
+  }
 
-.h-100 {
-  height: 100%;
-}
+  .h-100 {
+    height: 100%;
+  }
 </style>

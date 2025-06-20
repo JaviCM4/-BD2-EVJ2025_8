@@ -3,58 +3,53 @@ import { ref, computed } from 'vue'
 
 // Estados reactivos para carga CSV
 const driveUrl = ref('')
-const loading = ref(false)
-const success = ref(false)
+const cargando = ref(false)
+const exito = ref(false)
 const error = ref('')
-const responseData = ref(null)
+const datos = ref(null)
 
 // Estados reactivos para crear colección
-const loadingCollection = ref(false)
-const successCollection = ref(false)
-const errorCollection = ref('')
+const coleccionCargada = ref(false)
+const coleccionExitosa = ref(false)
+const coleccionError = ref('')
 const responseDataCollection = ref(null)
 
-// URL de ejemplo predefinida
 const exampleUrl = "https://drive.google.com/file/d/17eA7GUjf3ZUf8i4oVnvAiKSNCjqMq7yY/view"
 
-// Validación de URL de Google Drive
-const isValidGoogleDriveUrl = computed(() => {
+const esValidaURL = computed(() => {
   if (!driveUrl.value) return false
   const googleDrivePattern = /^https:\/\/drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+\/view(\?[^#]*)?$/
   return googleDrivePattern.test(driveUrl.value)
 })
 
-// Función para cargar la URL de ejemplo
-const loadExampleUrl = () => {
+const cargarEjemploURL = () => {
   driveUrl.value = exampleUrl
 }
 
-// Función para limpiar el formulario
-const clearForm = () => {
+
+const limpiarFormulario = () => {
   driveUrl.value = ''
-  success.value = false
+  exito.value = false
   error.value = ''
-  responseData.value = null
+  datos.value = null
 }
 
-// Función para limpiar los estados de colección
 const clearCollectionForm = () => {
-  successCollection.value = false
-  errorCollection.value = ''
+  coleccionExitosa.value = false
+  coleccionError.value = ''
   responseDataCollection.value = null
 }
 
-// Función principal para enviar datos a la API
-const uploadCsv = async () => {
-  if (!isValidGoogleDriveUrl.value) {
+const cargarCSV = async () => {
+  if (!esValidaURL.value) {
     error.value = 'Por favor ingresa una URL válida de Google Drive'
     return
   }
 
-  loading.value = true
+  cargando.value = true
   error.value = ''
-  success.value = false
-  responseData.value = null
+  exito.value = false
+  datos.value = null
 
   try {
     const response = await fetch('/api/aspirantes/cargar-csv', {
@@ -72,21 +67,20 @@ const uploadCsv = async () => {
     }
 
     const data = await response.json()
-    responseData.value = data
-    success.value = true
+    datos.value = data
+    exito.value = true
     
   } catch (err) {
     error.value = 'Error al procesar la solicitud'
   } finally {
-    loading.value = false
+    cargando.value = false
   }
 }
 
-// Función para crear colección
-const createCollection = async () => {
-  loadingCollection.value = true
-  errorCollection.value = ''
-  successCollection.value = false
+const crearColeccion = async () => {
+  coleccionCargada.value = true
+  coleccionError.value = ''
+  coleccionExitosa.value = false
   responseDataCollection.value = null
 
   try {
@@ -103,12 +97,12 @@ const createCollection = async () => {
 
     const data = await response.json()
     responseDataCollection.value = data
-    successCollection.value = true
+    coleccionExitosa.value = true
     
   } catch (err) {
-    errorCollection.value = 'Error al crear la colección'
+    coleccionError.value = 'Error al crear la colección'
   } finally {
-    loadingCollection.value = false
+    coleccionCargada.value = false
   }
 }
 </script>
@@ -162,20 +156,20 @@ const createCollection = async () => {
               label="URL de Google Drive"
               placeholder="https://drive.google.com/file/d/YOUR_FILE_ID/view"
               variant="outlined"
-              :rules="[() => driveUrl ? isValidGoogleDriveUrl || 'URL de Google Drive no válida' : true]"
-              :error="!!error && !loading"
-              :error-messages="error && !loading ? [error] : []"
+              :rules="[() => driveUrl ? esValidaURL || 'URL de Google Drive no válida' : true]"
+              :error="!!error && !cargando"
+              :error-messages="error && !cargando ? [error] : []"
               prepend-inner-icon="mdi-link"
               class="mb-4"
-              :disabled="loading"
+              :disabled="cargando"
             >
               <template v-slot:append>
                 <v-btn
                   size="small"
                   color="grey"
                   variant="text"
-                  @click="clearForm"
-                  :disabled="loading"
+                  @click="limpiarFormulario"
+                  :disabled="cargando"
                 >
                   <v-icon>mdi-close</v-icon>
                 </v-btn>
@@ -188,8 +182,8 @@ const createCollection = async () => {
                 variant="outlined"
                 color="grey"
                 size="small"
-                @click="loadExampleUrl"
-                :disabled="loading"
+                @click="cargarEjemploURL"
+                :disabled="cargando"
               >
                 <v-icon start>mdi-lightbulb-outline</v-icon>
                 Usar URL de ejemplo
@@ -202,19 +196,19 @@ const createCollection = async () => {
               size="large"
               color="teal"
               variant="flat"
-              :loading="loading"
-              :disabled="!isValidGoogleDriveUrl || loading"
-              @click="uploadCsv"
+              :loading="cargando"
+              :disabled="!esValidaURL || cargando"
+              @click="cargarCSV"
               class="mb-4"
             >
               <v-icon start>mdi-cloud-upload</v-icon>
-              <span v-if="loading">Cargando...</span>
+              <span v-if="cargando">Cargando...</span>
               <span v-else>Cargar CSV</span>
             </v-btn>
 
             <!-- Indicador de progreso -->
             <v-progress-linear
-              v-if="loading"
+              v-if="cargando"
               indeterminate
               color="teal"
               class="mb-4"
@@ -225,7 +219,7 @@ const createCollection = async () => {
       </v-row>
 
       <!-- Mensaje de éxito -->
-      <v-row v-if="success" justify="center" class="mt-4">
+      <v-row v-if="exito" justify="center" class="mt-4">
         <v-col cols="12" md="8" lg="6">
           <v-card elevation="4" color="green-lighten-5" border="start">
             <v-card-title class="text-green-darken-2">
@@ -240,7 +234,7 @@ const createCollection = async () => {
       </v-row>
 
       <!-- Mensaje de error -->
-      <v-row v-if="error && !loading" justify="center" class="mt-4">
+      <v-row v-if="error && !cargando" justify="center" class="mt-4">
         <v-col cols="12" md="8" lg="6">
           <v-card elevation="4" color="red-lighten-5" border="start">
             <v-card-title class="text-red-darken-2">
@@ -254,48 +248,12 @@ const createCollection = async () => {
                   color="red"
                   variant="outlined"
                   size="small"
-                  @click="clearForm"
+                  @click="limpiarFormulario"
                 >
                   <v-icon start>mdi-refresh</v-icon>
                   Intentar nuevamente
                 </v-btn>
               </div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
-
-      <!-- Información adicional -->
-      <v-row justify="center" class="mt-8">
-        <v-col cols="12" md="8" lg="6">
-          <v-card variant="outlined">
-            <v-card-title class="text-h6">
-              <v-icon class="me-2" color="blue">mdi-help-circle</v-icon>
-              Información técnica
-            </v-card-title>
-            <v-card-text>
-              <v-list density="compact">
-                <v-list-item>
-                  <v-list-item-title>Endpoint CSV:</v-list-item-title>
-                  <v-list-item-subtitle class="text-mono">
-                    POST /api/aspirantes/cargar-csv
-                  </v-list-item-subtitle>
-                </v-list-item>
-                <v-list-item>
-                  <v-list-item-title>Endpoint Resumen:</v-list-item-title>
-                  <v-list-item-subtitle class="text-mono">
-                    POST /api/aspirantes/generar-resumen
-                  </v-list-item-subtitle>
-                </v-list-item>
-                <v-list-item>
-                  <v-list-item-title>Formato:</v-list-item-title>
-                  <v-list-item-subtitle>JSON con campo "driveUrl"</v-list-item-subtitle>
-                </v-list-item>
-                <v-list-item>
-                  <v-list-item-title>Archivo:</v-list-item-title>
-                  <v-list-item-subtitle>CSV desde Google Drive</v-list-item-subtitle>
-                </v-list-item>
-              </v-list>
             </v-card-text>
           </v-card>
         </v-col>
@@ -322,19 +280,19 @@ const createCollection = async () => {
               size="large"
               color="purple"
               variant="flat"
-              :loading="loadingCollection"
-              :disabled="loadingCollection"
-              @click="createCollection"
+              :loading="coleccionCargada"
+              :disabled="coleccionCargada"
+              @click="crearColeccion"
               class="mb-4"
             >
               <v-icon start>mdi-folder-plus</v-icon>
-              <span v-if="loadingCollection">Creando...</span>
+              <span v-if="coleccionCargada">Creando...</span>
               <span v-else>Crear</span>
             </v-btn>
 
             <!-- Indicador de progreso para colección -->
             <v-progress-linear
-              v-if="loadingCollection"
+              v-if="coleccionCargada"
               indeterminate
               color="purple"
               class="mb-4"
@@ -344,7 +302,7 @@ const createCollection = async () => {
       </v-row>
 
       <!-- Mensaje de éxito para colección -->
-      <v-row v-if="successCollection" justify="center" class="mt-4">
+      <v-row v-if="coleccionExitosa" justify="center" class="mt-4">
         <v-col cols="12" md="8" lg="6">
           <v-card elevation="4" color="purple-lighten-5" border="start">
             <v-card-title class="text-purple-darken-2">
@@ -359,7 +317,7 @@ const createCollection = async () => {
       </v-row>
 
       <!-- Mensaje de error para colección -->
-      <v-row v-if="errorCollection && !loadingCollection" justify="center" class="mt-4">
+      <v-row v-if="coleccionError && !coleccionCargada" justify="center" class="mt-4">
         <v-col cols="12" md="8" lg="6">
           <v-card elevation="4" color="red-lighten-5" border="start">
             <v-card-title class="text-red-darken-2">
@@ -367,7 +325,7 @@ const createCollection = async () => {
               Error al crear colección
             </v-card-title>
             <v-card-text>
-              <p class="text-red-darken-1">{{ errorCollection }}</p>
+              <p class="text-red-darken-1">{{ coleccionError }}</p>
               <div class="mt-3">
                 <v-btn
                   color="red"
@@ -389,24 +347,24 @@ const createCollection = async () => {
 </template>
 
 <style scoped>
-.main-background {
-  margin: 0 auto;
-  padding: 40px;
-  background-image: url("https://i0.wp.com/i.pinimg.com/originals/98/eb/cb/98ebcbc2ca2cec8fdce270c00482da5a.jpg");
-  background-size: cover;
-  background-position: center;
-}
+  .main-background {
+    margin: 0 auto;
+    padding: 40px;
+    background-image: url("https://i0.wp.com/i.pinimg.com/originals/98/eb/cb/98ebcbc2ca2cec8fdce270c00482da5a.jpg");
+    background-size: cover;
+    background-position: center;
+  }
 
-.text-mono {
-  font-family: 'Courier New', monospace;
-  font-size: 0.875rem;
-}
+  .text-mono {
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+  }
 
-pre {
-  background-color: #f5f5f5;
-  padding: 12px;
-  border-radius: 4px;
-  overflow-x: auto;
-  max-height: 300px;
-}
+  pre {
+    background-color: #f5f5f5;
+    padding: 12px;
+    border-radius: 4px;
+    overflow-x: auto;
+    max-height: 300px;
+  }
 </style>

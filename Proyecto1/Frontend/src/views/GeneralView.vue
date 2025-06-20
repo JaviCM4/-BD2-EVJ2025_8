@@ -6,7 +6,6 @@
 
   Chart.register(CategoryScale,LinearScale,BarElement,BarController,LineController,LineElement,PointElement,ArcElement,PieController,Title,Tooltip,Legend,Zoom);
 
-  // Referencias para el canvas y la instancia del chart
   const chartCanvas = ref<HTMLCanvasElement | null>(null);
   let instanciaGrafica: Chart | null = null;
 
@@ -228,11 +227,7 @@
                     ])`
   };
 
-  
-  // NUEVO: Estado para el reporte seleccionado
   const reporteSeleccionado = ref<number>(1);
-
-  // NUEVO: Lista de reportes disponibles con nombres descriptivos
   const reportesDisponibles = ref([
     { valor: 1, nombre: 'Reporte 1 - Aspirantes por tipo de institución educativa' },
     { valor: 2, nombre: 'Reporte 2 - Cantidad de aprobados por materia' },
@@ -275,36 +270,24 @@
     return result;
   };
 
-  // Reemplazar la función procesarDatos existente
   const procesarDatos = (data: any[]) => {
     if (!data || data.length === 0) return;
 
     const primerElemento = data[0];
     
-    // NUEVO: Lógica especial para el reporte 13
     if (reporteSeleccionado.value === 13) {
-      // Primero identificar los campos de edad
-      const camposEdad = Object.keys(primerElemento).filter(key => 
-        key.toLowerCase().includes('edad') || 
-        key.toLowerCase().includes('age') ||
-        key.toLowerCase().includes('anos') ||
-        key.toLowerCase().includes('años')
-      );
-      
-      // Filtrar campos numéricos EXCLUYENDO los campos de edad
+      const camposEdad = Object.keys(primerElemento).filter(key => key.toLowerCase().includes('edad'));
+
       const campos = Object.keys(primerElemento).filter(key => {
         const value = primerElemento[key];
-        // Excluir campos de edad del reporte 13
         if (camposEdad.includes(key)) {
           return false;
         }
-        // Solo incluir campos numéricos
         return typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value)) && value.trim() !== '');
       });
       
       camposDisponibles.value = campos;
     } else {
-      // Lógica original para otros reportes
       const campos = Object.keys(primerElemento).filter(key => {
         const value = primerElemento[key];
         return typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value)) && value.trim() !== '');
@@ -313,7 +296,6 @@
       camposDisponibles.value = campos;
     }
     
-    // Si no hay campos seleccionados, seleccionar el primer campo numérico automáticamente
     if (camposSeleccinados.value.length === 0 && camposDisponibles.value.length > 0) {
       camposSeleccinados.value = [camposDisponibles.value[0]];
     }
@@ -321,49 +303,15 @@
     actualizarGrafica();
   };
 
-  // Reemplazar la función obtenerEtiqueta existente
-  const obtenerEtiqueta = () => {
-    const firstItem = datosApi.value[0];
-    
-    // NUEVO: Para el reporte 13, usar las edades como etiquetas
-    if (reporteSeleccionado.value === 13) {
-      return 'edad_label'; // Identificador especial para el reporte 13
-    }
-    
-    // Lógica original para otros reportes
-    const labelFields = Object.keys(firstItem).filter(key => {
-      const value = firstItem[key];
-      return typeof value === 'string' && (isNaN(Number(value)) || value.trim() === '');
-    });
-    
-    if (labelFields.length === 0) {
-      return Object.keys(firstItem)[0];
-    }
-    
-    if (labelFields.length === 1) {
-      return labelFields[0];
-    }
-    
-    return 'combined_label';
-  };
-
-  // Reemplazar la función generarEtiquetaCombinada existente
   const generarEtiquetaCombinada = (item: any) => {
-    // NUEVO: Lógica especial para el reporte 13
+
     if (reporteSeleccionado.value === 13) {
-      // Buscar el campo que represente la edad (puede ser 'edad', 'age', etc.)
-      const camposEdad = Object.keys(item).filter(key => 
-        key.toLowerCase().includes('edad') || 
-        key.toLowerCase().includes('age') ||
-        key.toLowerCase().includes('anos') ||
-        key.toLowerCase().includes('años')
-      );
+      const camposEdad = Object.keys(item).filter(key =>  key.toLowerCase().includes('edad'));
       
       if (camposEdad.length > 0) {
         return `${item[camposEdad[0]]} años`;
       }
       
-      // Si no encuentra campo de edad, usar el primer campo de texto
       const firstItem = datosApi.value[0];
       const labelFields = Object.keys(firstItem).filter(key => {
         const value = firstItem[key];
@@ -377,7 +325,6 @@
       return `Edad ${datosApi.value.indexOf(item) + 1}`;
     }
     
-    // Lógica original para otros reportes
     const firstItem = datosApi.value[0];
     const labelFields = Object.keys(firstItem).filter(key => {
       const value = firstItem[key];
@@ -399,16 +346,12 @@
     return combinedLabel;
   };
 
-  // MODIFICAR la función actualizarGrafica para usar las nuevas etiquetas
   const actualizarGrafica = () => {
     if (!datosApi.value.length || !camposSeleccinados.value.length) return;
 
-    // MODIFICADO: Usar la nueva función para generar etiquetas combinadas
     const labels = datosApi.value.map(item => generarEtiquetaCombinada(item));
     
-    // MODIFICADO: Configuración especial para gráfico de pastel
     if (tipoGraficaActual.value === 'pie') {
-      // Para gráfico de pastel, solo usar el primer campo seleccionado
       const field = camposSeleccinados.value[0];
       const data = datosApi.value.map(item => {
         const value = item[field];
@@ -425,7 +368,6 @@
         borderWidth: 2
       }];
 
-      // Actualizar datos del chart
       if (instanciaGrafica) {
         instanciaGrafica.data.labels = labels;
         instanciaGrafica.data.datasets = datasets;
@@ -434,7 +376,6 @@
         crearGrafica(labels, datasets);
       }
     } else {
-      // Para gráficos de barras y líneas (configuración original)
       const datasets = camposSeleccinados.value.map((field, index) => {
         const data = datosApi.value.map(item => {
           const value = item[field];
@@ -452,7 +393,6 @@
         };
       });
 
-      // Actualizar datos del chart
       if (instanciaGrafica) {
         instanciaGrafica.data.labels = labels;
         instanciaGrafica.data.datasets = datasets;
@@ -463,17 +403,14 @@
     }
   };
 
-  // MODIFICADO: Actualizar el título de la gráfica según el reporte seleccionado
   const obtenerTituloGrafica = () => {
     const reporteActual = reportesDisponibles.value.find(r => r.valor === reporteSeleccionado.value);
     return reporteActual ? reporteActual.nombre : `Reporte ${reporteSeleccionado.value}`;
   };
 
-  // MODIFICADO: Configuración dinámica del chart
   const crearGrafica = (labels: string[], datasets: any[]) => {
     if (!chartCanvas.value) return;
 
-    // MODIFICADO: Configuración específica para cada tipo de gráfica
     const config: ChartConfiguration<any> = {
       type: tipoGraficaActual.value,
       data: {
@@ -492,7 +429,6 @@
             display: true,
             position: tipoGraficaActual.value === 'pie' ? 'right' : 'top'
           },
-          // NUEVO: Configuración de zoom
           zoom: tipoGraficaActual.value !== 'pie' ? {
             limits: {
               y: {min: 0, max: 'original'},
@@ -514,10 +450,6 @@
               sensitivity: 3,
             }
           } : undefined,
-
-
-
-          // NUEVO: Configuración especial para tooltips en gráfico de pastel
           tooltip: tipoGraficaActual.value === 'pie' ? {
             callbacks: {
               label: function(context: any) {
@@ -530,7 +462,6 @@
             }
           } : undefined
         },
-        // MODIFICADO: Escalas solo para gráficos que no sean de pastel
         scales: tipoGraficaActual.value !== 'pie' ? {
           y: {
             beginAtZero: true,
@@ -556,24 +487,19 @@
     instanciaGrafica = new Chart(chartCanvas.value, config);
   };
 
-  // MODIFICADO: Petición HTTP que usa el reporte seleccionado
   const consultaGet = async () => {
     cargando.value = true;
 
     try {
-      // MODIFICADO: URL dinámica basada en el reporte seleccionado
       const response = await axios.get(`/api/aspirantes/reporte${reporteSeleccionado.value}`);
 
-      // Manejar tanto la estructura con 'data' como array directo
       let datos: any[] = [];
       let mensaje = '';
       
       if (response.data.data && Array.isArray(response.data.data)) {
-        // Estructura: { message: "", data: [] }
         datos = response.data.data;
         mensaje = response.data.message || '';
       } else if (Array.isArray(response.data)) {
-        // Estructura: array directo
         datos = response.data;
       } else {
         console.error('Estructura de respuesta no reconocida:', response.data);
@@ -599,17 +525,12 @@
     }
   };
 
-  // NUEVO: Función que se ejecuta cuando cambia el reporte seleccionado
   const cambiarReporte = () => {
-    // Limpiar datos anteriores
     camposSeleccinados.value = [];
     camposDisponibles.value = [];
-    
-    // Cargar nuevos datos
     consultaGet();
   };
 
-  // MODIFICADO: Función para cambiar el tipo de gráfica
   const cambiarTipoGrafica = (type: 'bar' | 'pie') => {
     tipoGraficaActual.value = type;
     
@@ -618,8 +539,6 @@
       instanciaGrafica = null;
     }
     
-    // NUEVO: Si cambiamos a gráfico de pastel y hay múltiples campos seleccionados,
-    // seleccionar solo el primero
     if (type === 'pie' && camposSeleccinados.value.length > 1) {
       camposSeleccinados.value = [camposSeleccinados.value[0]];
     }
@@ -627,13 +546,11 @@
     actualizarGrafica();
   };
 
-  // Función para cambiar campos seleccionados
   const intercalarCampos = (field: string) => {
     const index = camposSeleccinados.value.indexOf(field);
     if (index > -1) {
       camposSeleccinados.value.splice(index, 1);
     } else {
-      // NUEVO: Si es gráfico de pastel, solo permitir un campo
       if (tipoGraficaActual.value === 'pie') {
         camposSeleccinados.value = [field];
       } else {
@@ -643,24 +560,9 @@
     actualizarGrafica();
   };
 
-  // Función para resetear el zoom
   const resetZoom = () => {
     if (instanciaGrafica && instanciaGrafica.resetZoom) {
       instanciaGrafica.resetZoom();
-    }
-  };
-
-  // Función para hacer zoom in
-  const zoomIn = () => {
-    if (instanciaGrafica && instanciaGrafica.zoom) {
-      instanciaGrafica.zoom(1.1);
-    }
-  };
-
-  // Función para hacer zoom out
-  const zoomOut = () => {
-    if (instanciaGrafica && instanciaGrafica.zoom) {
-      instanciaGrafica.zoom(0.9);
     }
   };
 
@@ -680,7 +582,6 @@
   <div class="container">
     <h1>Información de los Aspirantes</h1>
     
-    <!-- NUEVO: Selector de reporte -->
     <div class="report-selector">
       <label for="reporte-select">Seleccionar Reporte:</label>
       <select 
@@ -720,7 +621,6 @@
       </button>
     </div>
 
-    <!-- MODIFICADO: Aviso para gráfico de pastel -->
     <div v-if="tipoGraficaActual === 'pie' && camposDisponibles.length > 0" class="pie-notice">
       <p><strong>Nota:</strong> El gráfico de pastel solo muestra un campo a la vez. Selecciona el campo que deseas visualizar.</p>
     </div>

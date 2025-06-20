@@ -2,7 +2,6 @@
   import { ref, computed } from 'vue';
   import axios from 'axios';
 
-  // Definir interfaces para tipado fuerte
   interface RegistroHistorial {
     correlativo_aspirante: string;
     sexo: string;
@@ -43,22 +42,19 @@
     materias: number;
     historial: MateriaHistorial[];
   }
-
-  // Estados reactivos existentes
+  
   const cargando = ref(false);
   const carnetEstudiante = ref('');
   const datosHistorial = ref<RegistroHistorial[]>([]);
   const mensajeApi = ref('');
   const mostrarResultados = ref(false);
   const error = ref('');
-
-  // Nuevos estados para el historial general
   const cargandoGeneral = ref(false);
   const datosHistorialGeneral = ref<HistorialGeneral>({} as HistorialGeneral);
   const mostrarModalGeneral = ref(false);
   const errorGeneral = ref('');
 
-  // Datos del aspirante (extraídos del primer registro)
+
   const datosAspirante = computed(() => {
     if (datosHistorial.value.length === 0) return null;
     
@@ -76,7 +72,6 @@
     };
   });
 
-  // Estadísticas del aspirante
   const estadisticas = computed(() => {
     if (datosHistorial.value.length === 0) return null;
     
@@ -84,8 +79,6 @@
     const aprobadas = datosHistorial.value.filter(registro => registro.aprobacion).length;
     const reprobadas = totalEvaluaciones - aprobadas;
     const porcentajeAprobacion = ((aprobadas / totalEvaluaciones) * 100).toFixed(1);
-    
-    // Materias únicas
     const materiasUnicas = [...new Set(datosHistorial.value.map(r => r.materia))];
     
     return {
@@ -98,7 +91,6 @@
     };
   });
 
-  // Computed para procesar datos del historial general
   const datosHistorialProcesados = computed((): EstudianteProcesado[] => {
     if (!datosHistorialGeneral.value.estudiantes) return [];
     
@@ -118,7 +110,6 @@
     });
   });
 
-  // Headers para la tabla individual
   const headers = [
     { title: 'Fecha', key: 'fecha_asignacion', sortable: true },
     { title: 'Materia', key: 'materia', sortable: true },
@@ -127,7 +118,6 @@
     { title: 'Año Ingreso', key: 'anio_de_ingreso', sortable: true }
   ];
 
-  // Headers para la tabla general
   const headersGeneral = [
     { title: 'Aspirante', key: 'aspirante', sortable: true },
     { title: 'Total Intentos', key: 'totalIntentos', sortable: true },
@@ -137,7 +127,6 @@
     { title: 'Acciones', key: 'acciones', sortable: false }
   ];
 
-  // Función para buscar historial individual
   const buscarHistorial = async () => {
     if (!carnetEstudiante.value.trim()) {
       error.value = 'Por favor ingresa un carnet de estudiante';
@@ -175,13 +164,11 @@
     }
   };
 
-  // Nueva función para cargar historial general
   const cargarHistorialGeneral = async () => {
     cargandoGeneral.value = true;
     errorGeneral.value = '';
     
     try {
-      // Aquí debes cambiar la URL por tu endpoint real
       const response = await axios.get('/api/aspirantes/reporte11');
       
       datosHistorialGeneral.value = response.data;
@@ -194,7 +181,6 @@
     }
   };
 
-  // Función para limpiar la búsqueda
   const limpiarBusqueda = () => {
     carnetEstudiante.value = '';
     datosHistorial.value = [];
@@ -203,29 +189,24 @@
     error.value = '';
   };
 
-  // Función para formatear fecha
   const formatearFecha = (fecha: string) => {
     return new Date(fecha).toLocaleDateString('es-GT');
   };
 
-  // Función para obtener color del chip de estado
   const obtenerColorEstado = (aprobacion: boolean) => {
     return aprobacion ? 'success' : 'error';
   };
 
-  // Función para obtener texto del estado
   const obtenerTextoEstado = (aprobacion: boolean) => {
     return aprobacion ? 'Aprobado' : 'Reprobado';
   };
 
-  // Función para obtener color según porcentaje de éxito
   const obtenerColorPorcentaje = (porcentaje: number) => {
     if (porcentaje >= 70) return 'success';
     if (porcentaje >= 50) return 'warning';
     return 'error';
   };
 
-  // Función para buscar un aspirante específico desde la tabla general
   const buscarAspiranteDesdeGeneral = (aspirante: string) => {
     carnetEstudiante.value = aspirante;
     mostrarModalGeneral.value = false;
