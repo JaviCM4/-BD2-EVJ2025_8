@@ -542,3 +542,22 @@ bd.Aspirantes.aggregate([
       }
     ]);
 
+
+
+
+
+CONSULTAS EN NEO4J:
+-- las pruebas que se realizaron 25 aspirantes
+MATCH p=()-[r:REALIZA]->() RETURN p LIMIT 25
+
+-- que pruebas se realizo un aspirante en especifico
+MATCH p=(a:Aspirante {correlativo: "cf24eeb747da491e97c0"})-[r:REALIZA]->(m:Materia)
+RETURN p
+
+-- buscar aspirantes por carrera con filtro de sexo:
+MATCH p=(a:Aspirante)-[:BUSCA_CARRERA]->(c:Carrera)
+WHERE a.sexo = "F"
+RETURN p
+LIMIT 50
+
+
