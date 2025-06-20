@@ -45,35 +45,54 @@ app.post('/cargar-csv-drive', async (req, res) => {
         const session = driver.session();
 
         try {
-          for (const item of resultados) {
-            await session.run(
-              `CREATE (a:Aspirante {
-                fecha_asignacion: $fecha_asignacion,
-                sexo: $sexo,
-                anio_nacimiento: $anio_nacimiento,
-                materia: $materia,
-                numero_de_fecha_de_evaluacion: $numero_de_fecha_de_evaluacion,
-                anio_de_ingreso: $anio_de_ingreso,
-                aprobacion: $aprobacion,
-                carrera_objetivo: $carrera_objetivo,
-                departamento_institucion_educativa: $departamento_institucion_educativa,
-                municipio_institucion_educativa: $municipio_institucion_educativa,
-                tipo_institucion_educativa: $tipo_institucion_educativa,
-                correlativo_aspirante: $correlativo_aspirante
-              })`,
-              item
-            );
+          for (const d of resultados) {
+            await session.run(`
+        MERGE (a:Aspirante {correlativo: $correlativo})
+        SET a.sexo = $sexo,
+            a.anio_nacimiento = toInteger($anio_nacimiento),
+            a.fecha_asignacion = date($fecha_asignacion),
+            a.anio_ingreso = toInteger($anio_ingreso),
+            a.numero_de_fecha = toInteger($numero_de_fecha),
+            a.aprobacion = $aprobacion
+
+        MERGE (c:Carrera {nombre: $carrera})
+        MERGE (m:Materia {nombre: $materia})
+        MERGE (i:Institucion {
+          tipo: $tipo_institucion,
+          municipio: $municipio,
+          departamento: $departamento
+        })
+
+        MERGE (a)-[:BUSCA_CARRERA]->(c)
+        MERGE (a)-[:REALIZA]->(m)
+        MERGE (a)-[:ESTUDIA_EN]->(i)
+        MERGE (i)-[:OFRECE]->(c)
+      `, {
+              correlativo: d.correlativo_aspirante,
+              sexo: d.sexo,
+              anio_nacimiento: d.anio_nacimiento,
+              fecha_asignacion: d.fecha_asignacion,
+              anio_ingreso: d.anio_de_ingreso,
+              numero_de_fecha: d.numero_de_fecha_de_evaluacion,
+              aprobacion: d.aprobacion,
+              carrera: d.carrera_objetivo,
+              materia: d.materia,
+              tipo_institucion: d.tipo_institucion_educativa,
+              municipio: d.municipio_institucion_educativa,
+              departamento: d.departamento_institucion_educativa
+            });
           }
 
-          res.json({ mensaje: 'Datos cargados exitosamente en Neo4j.' });
+          res.json({ mensaje: 'Datos y relaciones cargados correctamente en Neo4j.' });
         } catch (err) {
           console.error(err);
-          res.status(500).json({ error: 'Error al insertar en Neo4j.' });
+          res.status(500).json({ error: 'Error al insertar nodos y relaciones en Neo4j.' });
         } finally {
           await session.close();
           fs.unlinkSync(tmpFile);
         }
       });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error al descargar el archivo de Google Drive.' });
