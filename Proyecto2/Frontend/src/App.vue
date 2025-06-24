@@ -1,3 +1,12 @@
+<script setup>
+  import BarraNavegacion from './components/BarraNavegacion.vue'
+</script>
+
 <template>
-  <router-view />
+  <v-app>
+    <BarraNavegacion/>
+    <v-main>
+      <router-view/>
+    </v-main>
+  </v-app>
 </template>

@@ -1,0 +1,889 @@
+<template>
+  <v-app>
+    <v-main class="gaming-background">
+      <div class="background-overlay"></div>
+      <v-container fluid class="pa-8 position-relative">
+        <!-- Título principal -->
+        <v-row justify="center" class="mb-6">
+          <v-col cols="12" md="10" lg="8">
+            <v-card
+              class="mx-auto elevation-12 glass-card"
+              color="rgba(26, 35, 126, 0.9)"
+            >
+              <v-card-text class="text-center py-8">
+                <v-icon size="64" color="cyan-accent-2" class="mb-4">
+                  mdi-gamepad-variant-outline
+                </v-icon>
+                <h1 class="text-h4 font-weight-bold text-white mb-2">
+                  Biblioteca de Videojuegos
+                </h1>
+                <p class="text-subtitle-1 text-cyan-accent-2 mb-0">
+                  Panel de administración - {{ videogames.length }} videojuegos disponibles
+                </p>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <!-- Barra de búsqueda -->
+        <v-row justify="center" class="mb-4">
+          <v-col cols="12" md="8" lg="6">
+            <v-text-field
+              v-model="busqueda"
+              label="Buscar videojuego..."
+              prepend-icon="mdi-magnify"
+              variant="outlined"
+              density="compact"
+              color="cyan-accent-2"
+              class="gaming-input"
+              clearable
+            >
+              <template v-slot:append-inner>
+                <v-icon color="cyan-accent-2">mdi-gamepad-square</v-icon>
+              </template>
+            </v-text-field>
+          </v-col>
+        </v-row>
+
+        <!-- Lista de videojuegos -->
+        <v-row justify="center">
+          <v-col cols="12" md="12" lg="12">
+            <v-card elevation="16" class="rounded-xl glass-card">
+              <v-card-title class="text-h5 font-weight-bold gaming-gradient text-white pa-6">
+                <v-icon class="mr-3" color="white">mdi-controller-classic</v-icon>
+                Videojuegos Registrados
+              </v-card-title>
+              
+              <v-card-text class="pa-0 card-content">
+                <div class="pa-4">
+                  <template v-for="(game, index) in filteredGames" :key="game.id">
+                    <v-card
+                      class="gaming-game-card mb-6 elevation-4"
+                      @click="abrirResenias(game)"
+                    >
+                      <v-card-text class="pa-6">
+                        <v-row>
+                          <!-- Avatar y título principal -->
+                          <v-col cols="12" md="8" class="d-flex align-start">
+                            <v-avatar
+                              size="80"
+                              class="gaming-avatar mr-6"
+                              :color="getAvatarColor(game.titulo)"
+                            >
+                              <v-icon size="40" color="white">
+                                {{ getGenreIcon(game.genero) }}
+                              </v-icon>
+                            </v-avatar>
+                            
+                            <div class="flex-grow-1">
+                              <h2 class="text-h4 font-weight-bold text-dark mb-2">
+                                {{ game.titulo }}
+                              </h2>
+                              
+                              <!-- Información básica en chips -->
+                              <div class="d-flex flex-wrap gap-2 mb-3">
+                                <v-chip
+                                  color="cyan-accent-2"
+                                  variant="outlined"
+                                  size="small"
+                                  prepend-icon="mdi-tag"
+                                >
+                                  {{ game.genero }}
+                                </v-chip>
+                                <v-chip
+                                  color="purple"
+                                  variant="outlined"
+                                  size="small"
+                                  prepend-icon="mdi-domain"
+                                >
+                                  {{ game.desarrollador }}
+                                </v-chip>
+                                <v-chip
+                                  color="amber"
+                                  variant="outlined"
+                                  size="small"
+                                  prepend-icon="mdi-calendar"
+                                >
+                                  {{ game.ano }}
+                                </v-chip>
+                              </div>
+                              
+                              <!-- Rating y estadísticas -->
+                              <div class="d-flex align-center mb-3">
+                                <v-rating
+                                  :model-value="getAverageRating(game.id)"
+                                  color="amber"
+                                  density="compact"
+                                  readonly
+                                  size="small"
+                                  class="mr-3"
+                                ></v-rating>
+                                <span class="text-dark-secondary font-weight-medium">
+                                  {{ getAverageRating(game.id).toFixed(1) }}/5
+                                </span>
+                                <v-divider vertical class="mx-3"></v-divider>
+                                <v-icon size="16" color="cyan-accent-2" class="mr-1">mdi-comment-multiple</v-icon>
+                                <span class="text-dark-secondary">
+                                  {{ game.reviews.length }} reseña{{ game.reviews.length !== 1 ? 's' : '' }}
+                                </span>
+                              </div>
+                            </div>
+                          </v-col>
+                          
+                          <!-- Botón de acción -->
+                          <v-col cols="12" md="4" class="d-flex align-center justify-end">
+                            <v-btn
+                              color="cyan-accent-2"
+                              variant="outlined"
+                              size="large"
+                              class="gaming-btn"
+                              @click.stop="abrirResenias(game)"
+                            >
+                              <v-icon start>mdi-star-outline</v-icon>
+                              Ver Reseñas
+                            </v-btn>
+                          </v-col>
+                        </v-row>
+                        
+                        <!-- Descripción completa -->
+                        <v-row class="mt-2">
+                          <v-col cols="12">
+                            <v-divider class="mb-4"></v-divider>
+                            <div class="d-flex align-start">
+                              <v-icon color="cyan-accent-2" class="mr-2 mt-1" size="20">mdi-text</v-icon>
+                              <div>
+                                <h4 class="text-subtitle-1 font-weight-bold text-dark mb-2">Descripción</h4>
+                                <p class="text-body-1 text-dark-secondary mb-0 line-height-relaxed">
+                                  {{ game.descripcion }}
+                                </p>
+                              </div>
+                            </div>
+                          </v-col>
+                        </v-row>
+                        
+                        <!-- Información detallada -->
+                        <v-row class="mt-4">
+                          <v-col cols="12">
+                            <v-divider class="mb-4"></v-divider>
+                            <h4 class="text-subtitle-1 font-weight-bold text-dark mb-3">
+                              <v-icon color="cyan-accent-2" class="mr-2">mdi-information</v-icon>
+                              Información Detallada
+                            </h4>
+                            
+                            <v-row>
+                              <v-col cols="12" md="4">
+                                <div class="info-detail-item">
+                                  <v-icon color="purple" size="18" class="mr-2">mdi-domain</v-icon>
+                                  <div>
+                                    <span class="text-caption text-dark-secondary">Desarrollador</span>
+                                    <p class="text-body-2 font-weight-medium text-dark mb-0">{{ game.desarrollador }}</p>
+                                  </div>
+                                </div>
+                              </v-col>
+                              
+                              <v-col cols="12" md="4">
+                                <div class="info-detail-item">
+                                  <v-icon color="amber" size="18" class="mr-2">mdi-calendar</v-icon>
+                                  <div>
+                                    <span class="text-caption text-dark-secondary">Año de Lanzamiento</span>
+                                    <p class="text-body-2 font-weight-medium text-dark mb-0">{{ game.ano }}</p>
+                                  </div>
+                                </div>
+                              </v-col>
+                              
+                              <v-col cols="12" md="4">
+                                <div class="info-detail-item">
+                                  <v-icon color="cyan-accent-2" size="18" class="mr-2">mdi-tag</v-icon>
+                                  <div>
+                                    <span class="text-caption text-dark-secondary">Género</span>
+                                    <p class="text-body-2 font-weight-medium text-dark mb-0">{{ game.genero }}</p>
+                                  </div>
+                                </div>
+                              </v-col>
+                            </v-row>
+                          </v-col>
+                        </v-row>
+                        
+                        <!-- Reseñas recientes (preview) -->
+                        <v-row class="mt-4" v-if="game.reviews.length > 0">
+                          <v-col cols="12">
+                            <v-divider class="mb-4"></v-divider>
+                            <h4 class="text-subtitle-1 font-weight-bold text-dark mb-3">
+                              <v-icon color="cyan-accent-2" class="mr-2">mdi-comment-multiple</v-icon>
+                              Reseñas Recientes
+                            </h4>
+                            
+                            <div class="d-flex flex-column gap-3">
+                              <div 
+                                v-for="review in game.reviews.slice(0, 2)" 
+                                :key="review.id"
+                                class="review-preview-item"
+                              >
+                                <div class="d-flex align-center mb-2">
+                                  <v-avatar size="24" :color="getAvatarColor(review.usuario)" class="mr-2">
+                                    <span class="text-white text-caption font-weight-bold">
+                                      {{ review.usuario.charAt(0).toUpperCase() }}
+                                    </span>
+                                  </v-avatar>
+                                  <span class="text-body-2 font-weight-medium text-dark mr-2">{{ review.usuario }}</span>
+                                  <v-rating
+                                    :model-value="review.calificacion"
+                                    color="amber"
+                                    density="compact"
+                                    readonly
+                                    size="x-small"
+                                    class="mr-2"
+                                  ></v-rating>
+                                  <span class="text-caption text-dark-secondary">{{ formatDate(review.fecha) }}</span>
+                                </div>
+                                <p class="text-body-2 text-dark-secondary mb-0 ml-8">
+                                  {{ review.comentario.length > 100 ? review.comentario.substring(0, 100) + '...' : review.comentario }}
+                                </p>
+                              </div>
+                              
+                              <div v-if="game.reviews.length > 2" class="ml-8">
+                                <v-btn
+                                  variant="text"
+                                  color="cyan-accent-2"
+                                  size="small"
+                                  @click.stop="abrirResenias(game)"
+                                >
+                                  Ver todas las {{ game.reviews.length }} reseñas
+                                  <v-icon end size="16">mdi-arrow-right</v-icon>
+                                </v-btn>
+                              </div>
+                            </div>
+                          </v-col>
+                        </v-row>
+                        
+                        <!-- Sin reseñas -->
+                        <v-row class="mt-4" v-else>
+                          <v-col cols="12">
+                            <v-divider class="mb-4"></v-divider>
+                            <div class="text-center py-4">
+                              <v-icon color="cyan-accent-2" size="32" class="mb-2">mdi-comment-outline</v-icon>
+                              <p class="text-body-2 text-dark-secondary mb-2">No hay reseñas para este juego aún</p>
+                              <v-btn
+                                variant="outlined"
+                                color="cyan-accent-2"
+                                size="small"
+                                @click.stop="abrirResenias(game)"
+                              >
+                                <v-icon start size="16">mdi-plus</v-icon>
+                                Agregar Primera Reseña
+                              </v-btn>
+                            </div>
+                          </v-col>
+                        </v-row>
+                      </v-card-text>
+                    </v-card>
+                  </template>
+                </div>
+
+                <!-- Estado vacío -->
+                <div v-if="filteredGames.length === 0" class="text-center py-12">
+                  <v-icon size="64" color="cyan-accent-2" class="mb-4">
+                    mdi-gamepad-square-outline
+                  </v-icon>
+                  <h3 class="text-h6 text-white mb-2">
+                    {{ busqueda ? 'No se encontraron videojuegos' : 'No hay videojuegos registrados' }}
+                  </h3>
+                  <p class="text-cyan-accent-2">
+                    {{ busqueda ? 'Intenta con otro término de búsqueda' : 'Los nuevos juegos aparecerán aquí' }}
+                  </p>
+                </div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+      </v-container>
+    </v-main>
+
+    <!-- Modal de reseñas -->
+    <v-dialog v-model="reseniaPanel" max-width="900" persistent>
+      <v-card class="glass-card gaming-modal">
+        <v-card-title class="gaming-gradient text-white pa-6">
+          <v-icon class="mr-3" color="white">mdi-star-outline</v-icon>
+          Reseñas de {{ selectedGameForReviews?.titulo }}
+        </v-card-title>
+
+        <v-card-text class="pa-6 card-content" style="max-height: 70vh; overflow-y: auto;">
+          <!-- Formulario para nueva reseña -->
+          <v-card class="mb-6 elevation-4" color="rgba(24, 34, 148, 0.1)">
+            <v-card-title class="text-dark pb-4">
+              <v-icon color="cyan-accent-2" class="mr-2">mdi-plus</v-icon>
+              Agregar Nueva Reseña
+            </v-card-title>
+            <v-card-text>
+              <v-form ref="reseniaFormulario" v-model="reseniaValida">
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="nuevaResenia.usuario"
+                      label="Tu nombre de usuario"
+                      variant="outlined"
+                      density="compact"
+                      color="cyan-accent-2"
+                      required
+                      :rules="[v => !!v || 'El nombre es obligatorio']"
+                      class="review-input"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <div class="d-flex align-center">
+                      <span class="text-dark mr-3">Calificación:</span>
+                      <v-rating
+                        v-model="nuevaResenia.calificacion"
+                        color="amber"
+                        hover
+                        :rules="[v => v > 0 || 'Debes dar una calificación']"
+                      ></v-rating>
+                    </div>
+                  </v-col>
+                  <v-col cols="12">
+                    <v-textarea
+                      v-model="nuevaResenia.comentario"
+                      label="Tu reseña"
+                      variant="outlined"
+                      rows="3"
+                      color="cyan-accent-2"
+                      required
+                      :rules="[v => !!v || 'El comentario es obligatorio', v => (v && v.length >= 10) || 'Mínimo 10 caracteres']"
+                      class="review-input"
+                    ></v-textarea>
+                  </v-col>
+                </v-row>
+                <v-btn
+                  color="cyan-accent-2"
+                  @click="addReview"
+                  :disabled="!reseniaValida"
+                  :loading="addingReview"
+                  class="gaming-btn"
+                >
+                  <v-icon start>mdi-plus</v-icon>
+                  Publicar Reseña
+                </v-btn>
+              </v-form>
+            </v-card-text>
+          </v-card>
+
+          <!-- Lista de reseñas existentes -->
+          <div v-if="selectedGameForReviews?.reviews.length > 0">
+            <h3 class="text-h6 text-dark mb-4">
+              <v-icon color="cyan-accent-2" class="mr-2">mdi-comment-multiple</v-icon>
+              Reseñas ({{ selectedGameForReviews.reviews.length }})
+            </h3>
+            
+            <v-card
+              v-for="review in selectedGameForReviews.reviews"
+              :key="review.id"
+              class="mb-4 elevation-2"
+              color="rgba(255, 255, 255, 0.95)"
+            >
+              <v-card-text class="pb-2">
+                <div class="d-flex justify-space-between align-center mb-2">
+                  <div class="d-flex align-center">
+                    <v-avatar size="32" :color="getAvatarColor(review.usuario)" class="mr-3">
+                      <span class="text-white text-caption font-weight-bold">
+                        {{ review.usuario.charAt(0).toUpperCase() }}
+                      </span>
+                    </v-avatar>
+                    <div>
+                      <p class="text-dark font-weight-bold mb-0">{{ review.usuario }}</p>
+                      <p class="text-dark-secondary text-caption">{{ formatDate(review.fecha) }}</p>
+                    </div>
+                  </div>
+                  <v-rating
+                    :model-value="review.calificacion"
+                    color="amber"
+                    density="compact"
+                    readonly
+                    size="small"
+                  ></v-rating>
+                </div>
+                <p class="text-dark mb-0">{{ review.comentario }}</p>
+              </v-card-text>
+            </v-card>
+          </div>
+          
+          <div v-else class="text-center py-8">
+            <v-icon size="48" color="cyan-accent-2" class="mb-3">mdi-comment-outline</v-icon>
+            <h4 class="text-h6 text-dark mb-2">No hay reseñas aún</h4>
+            <p class="text-dark-secondary">¡Sé el primero en reseñar este juego!</p>
+          </div>
+        </v-card-text>
+
+        <v-card-actions class="pa-6 pt-0 card-content">
+          <v-btn
+            variant="outlined"
+            color="cyan-accent-2"
+            @click="cerrarResenias"
+            class="gaming-btn"
+          >
+            <v-icon start>mdi-arrow-left</v-icon>
+            Cerrar
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Snackbar para notificaciones -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      timeout="4000"
+      location="top"
+    >
+      {{ snackbar.message }}
+      <template v-slot:actions>
+        <v-btn
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Cerrar
+        </v-btn>
+      </template>
+    </v-snackbar>
+  </v-app>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+// Interfaces
+interface Resenia {
+  id: number
+  usuario: string
+  calificacion: number
+  comentario: string
+  fecha: string
+}
+
+interface Videojuego {
+  id: number
+  titulo: string
+  genero: string
+  descripcion: string
+  desarrollador: string
+  ano: number
+  reviews: Resenia[]
+}
+
+interface Snackbar {
+  show: boolean
+  message: string
+  color: string
+}
+
+// Refs
+const busqueda = ref('')
+const reseniaPanel = ref(false)
+const selectedGameForReviews = ref<Videojuego | null>(null)
+const addingReview = ref(false)
+const reseniaValida = ref(false)
+const reseniaFormulario = ref<any>(null)
+
+const nuevaResenia = ref({
+  usuario: '',
+  calificacion: 0,
+  comentario: ''
+})
+
+const snackbar = ref<Snackbar>({
+  show: false,
+  message: '',
+  color: 'success'
+})
+
+// Datos de ejemplo
+const videogames = ref<Videojuego[]>([
+  {
+    id: 1,
+    titulo: 'The Legend of Zelda: Breath of the Wild',
+    genero: 'Aventura',
+    descripcion: 'Un juego de aventuras en mundo abierto que reinventa la serie Zelda con una libertad sin precedentes. Los jugadores pueden explorar la vasta región de Hyrule de la manera que deseen, escalando montañas, planeando desde las alturas y descubriendo secretos ocultos en cada rincón del mundo.',
+    desarrollador: 'Nintendo EPD',
+    ano: 2017,
+    reviews: [
+      {
+        id: 1,
+        usuario: 'GamerPro2024',
+        calificacion: 5,
+        comentario: 'Increíble juego, la libertad de exploración es fantástica. Los puzzles de los santuarios son geniales y la física del juego permite soluciones creativas que nunca pensé que serían posibles.',
+        fecha: '2024-06-15T10:30:00Z'
+      },
+      {
+        id: 2,
+        usuario: 'PixelWarrior',
+        calificacion: 4,
+        comentario: 'Excelente mundo abierto, aunque a veces se siente un poco vacío. La mecánica de escalada es innovadora y la banda sonora es absolutamente hermosa.',
+        fecha: '2024-06-10T14:20:00Z'
+      }
+    ]
+  },
+  {
+    id: 2,
+    titulo: 'Cyberpunk 2077',
+    genero: 'RPG',
+    descripcion: 'Un RPG de mundo abierto ambientado en Night City, una megalópolis obsesionada con el poder, la ostentación y la modificación corporal. Los jugadores asumen el papel de V, un mercenario en busca de un implante único que es la clave de la inmortalidad.',
+    desarrollador: 'CD Projekt RED',
+    ano: 2020,
+    reviews: [
+      {
+        id: 3,
+        usuario: 'CyberNinja',
+        calificacion: 3,
+        comentario: 'Después de las actualizaciones está mucho mejor. La historia es interesante pero los bugs siguen siendo un problema ocasional. Los gráficos son impresionantes en PC.',
+        fecha: '2024-06-12T16:45:00Z'
+      }
+    ]
+  },
+  {
+    id: 3,
+    titulo: 'God of War',
+    genero: 'Acción',
+    descripcion: 'Kratos vive ahora como un hombre en las tierras de los dioses y monstruos nórdicos. En este mundo hostil, debe luchar por sobrevivir y enseñar a su hijo a hacer lo mismo. Esta nueva aventura redefine la serie con una narrativa madura y un combate visceral.',
+    desarrollador: 'Santa Monica Studio',
+    ano: 2018,
+    reviews: [
+      {
+        id: 4,
+        usuario: 'DragonSlayer99',
+        calificacion: 5,
+        comentario: 'Una obra maestra absoluta. La relación entre Kratos y Atreus está perfectamente desarrollada. El combate es satisfactorio y la cinematografía es de primer nivel.',
+        fecha: '2024-06-08T12:15:00Z'
+      },
+      {
+        id: 5,
+        usuario: 'NeonHunter',
+        calificacion: 5,
+        comentario: 'El combate es visceral y satisfactorio. Los gráficos son impresionantes. La evolución del personaje de Kratos es fenomenal. 10/10.',
+        fecha: '2024-06-05T18:30:00Z'
+      }
+    ]
+  },
+  {
+    id: 4,
+    titulo: 'Hollow Knight',
+    genero: 'Indie',
+    descripcion: 'Un juego de aventuras clásico en 2D ambientado en un vasto mundo interconectado lleno de secretos por descubrir, insectos amigables y bestias peligrosas. Forja tu propio camino en Hollow Knight, una aventura de acción épica en un reino en ruinas.',
+    desarrollador: 'Team Cherry',
+    ano: 2017,
+    reviews: []
+  },
+  {
+    id: 5,
+    titulo: 'Elden Ring',
+    genero: 'RPG',
+    descripcion: 'Un nuevo juego de rol de fantasía desarrollado por FromSoftware Inc. y producido por BANDAI NAMCO Entertainment Inc. Elden Ring combina la jugabilidad característica de Dark Souls con un mundo abierto creado en colaboración con George R.R. Martin.',
+    desarrollador: 'FromSoftware',
+    ano: 2022,
+    reviews: [
+      {
+        id: 6,
+        usuario: 'SoulsBorne',
+        calificacion: 4,
+        comentario: 'Difícil pero justo. El mundo abierto añade una nueva dimensión a la fórmula de Dark Souls. Los jefes son épicos y el lore es fascinante.',
+        fecha: '2024-06-20T09:45:00Z'
+      }
+    ]
+  }
+])
+
+// Computed
+const filteredGames = computed(() => {
+  if (!busqueda.value) return videogames.value
+  
+  const query = busqueda.value.toLowerCase()
+  return videogames.value.filter(game =>
+    game.titulo.toLowerCase().includes(query) ||
+    game.genero.toLowerCase().includes(query) ||
+    game.desarrollador.toLowerCase().includes(query) ||
+    game.descripcion.toLowerCase().includes(query)
+  )
+})
+
+// Metodos
+const abrirResenias = (game: Videojuego): void => {
+  selectedGameForReviews.value = game
+  reseniaPanel.value = true
+  resetearFormularioResenia()
+}
+
+const cerrarResenias = (): void => {
+  reseniaPanel.value = false
+  selectedGameForReviews.value = null
+  resetearFormularioResenia()
+}
+
+const resetearFormularioResenia = (): void => {
+  nuevaResenia.value = {
+    usuario: '',
+    calificacion: 0,
+    comentario: ''
+  }
+  if (reseniaFormulario.value) {
+    reseniaFormulario.value.resetValidation()
+  }
+}
+
+const addReview = async (): Promise<void> => {
+  if (!selectedGameForReviews.value || !reseniaFormulario.value.validate()) return
+  
+  addingReview.value = true
+  
+  try {
+    // Simular llamada a API
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    const review: Resenia = {
+      id: Date.now(),
+      usuario: nuevaResenia.value.usuario,
+      calificacion: nuevaResenia.value.calificacion,
+      comentario: nuevaResenia.value.comentario,
+      fecha: new Date().toISOString()
+    }
+    
+    // Encontrar el juego y agregar la reseña
+    const gameIndex = videogames.value.findIndex(g => g.id === selectedGameForReviews.value!.id)
+    if (gameIndex > -1) {
+      videogames.value[gameIndex].reviews.push(review)
+    }
+    
+    snackbar.value = {
+      show: true,
+      message: 'Reseña agregada exitosamente',
+      color: 'success'
+    }
+    
+    resetearFormularioResenia()
+    
+  } catch (error) {
+    snackbar.value = {
+      show: true,
+      message: 'Error al agregar la reseña. Inténtalo de nuevo.',
+      color: 'error'
+    }
+  } finally {
+    addingReview.value = false
+  }
+}
+
+const getAverageRating = (gameId: number): number => {
+  const game = videogames.value.find(g => g.id === gameId)
+  if (!game || game.reviews.length === 0) return 0
+  
+  const sum = game.reviews.reduce((acc, review) => acc + review.calificacion, 0)
+  return sum / game.reviews.length
+}
+
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
+}
+
+const getAvatarColor = (text: string): string => {
+  const colors = ['deep-purple', 'indigo', 'blue', 'cyan', 'teal', 'green', 'amber', 'orange', 'red', 'pink']
+  const index = text.length % colors.length
+  return colors[index]
+}
+
+const getGenreIcon = (genre: string): string => {
+  const iconMap: { [key: string]: string } = {
+    'Acción': 'mdi-sword',
+    'Aventura': 'mdi-compass',
+    'RPG': 'mdi-shield',
+    'Estrategia': 'mdi-chess-pawn',
+    'Simulación': 'mdi-airplane',
+    'Deportes': 'mdi-soccer',
+    'Carreras': 'mdi-car-sports',
+    'Puzzle': 'mdi-puzzle',
+    'Terror': 'mdi-ghost',
+    'Shooter': 'mdi-target',
+    'Plataformas': 'mdi-gamepad-variant',
+    'Indie': 'mdi-diamond',
+    'Multijugador': 'mdi-account-group'
+  }
+  return iconMap[genre] || 'mdi-gamepad-variant'
+}
+
+onMounted(() => {
+  console.log('Lista de videojuegos cargada')
+})
+</script>
+
+<style scoped>
+.gaming-background {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 25%, #16213e 50%, #0f3460 75%, #533483 100%);
+  background-attachment: fixed;
+  position: relative;
+}
+
+.gaming-background::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(120, 219, 255, 0.1) 0%, transparent 50%);
+  background-size: 100% 100%;
+  pointer-events: none;
+}
+
+.background-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    linear-gradient(45deg, transparent 49%, rgba(0, 255, 255, 0.03) 50%, transparent 51%),
+    linear-gradient(-45deg, transparent 49%, rgba(255, 0, 255, 0.03) 50%, transparent 51%);
+  background-size: 60px 60px;
+  animation: backgroundMove 20s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes backgroundMove {
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 60px 60px, -60px 60px; }
+}
+
+.position-relative {
+  position: relative;
+  z-index: 1;
+}
+
+.glass-card {
+  background: rgba(24, 34, 148, 0.15) !important;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-content {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+.gaming-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%) !important;
+}
+
+.gaming-input {
+  margin-bottom: 8px;
+}
+
+.gaming-input :deep(.v-field__input) {
+  color: white !important;
+}
+
+.gaming-input :deep(.v-label) {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.gaming-input :deep(.v-field--variant-outlined .v-field__outline) {
+  --v-field-border-color: rgba(0, 255, 255, 0.3);
+}
+
+.gaming-input :deep(.v-field--variant-outlined:hover .v-field__outline) {
+  --v-field-border-color: rgba(0, 255, 255, 0.6);
+}
+
+.gaming-input :deep(.v-field__field) {
+  background: rgba(15, 15, 35, 0.5) !important;
+}
+
+.gaming-game-card {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(0, 255, 255, 0.1);
+}
+
+.gaming-game-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 255, 255, 0.2);
+  border-color: rgba(0, 255, 255, 0.3);
+}
+
+.gaming-avatar {
+  border: 3px solid rgba(0, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.gaming-avatar:hover {
+  border-color: rgba(0, 255, 255, 0.8);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+}
+
+.gaming-btn {
+  border-radius: 12px;
+  text-transform: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  padding: 12px 24px;
+}
+
+.gaming-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 255, 255, 0.3);
+}
+
+.gaming-modal {
+  border: 1px solid rgba(0, 255, 255, 0.3);
+}
+
+.info-detail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.info-detail-item .v-icon {
+  margin-top: 2px;
+}
+
+.review-preview-item {
+  padding: 12px;
+  background: rgba(0, 255, 255, 0.05);
+  border-radius: 8px;
+  border-left: 3px solid rgba(0, 255, 255, 0.3);
+}
+
+.line-height-relaxed {
+  line-height: 1.6;
+}
+
+/* Colores de texto para mejor legibilidad */
+.text-dark {
+  color: #1a1a1a !important;
+}
+
+.text-dark-secondary {
+  color: #666666 !important;
+}
+
+/* Efectos para inputs focus */
+.gaming-input :deep(.v-field--focused .v-field__outline) {
+  --v-field-border-color: #00e5ff;
+  --v-field-border-width: 2px;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+}
+
+.review-input :deep(.v-field--focused .v-field__outline) {
+  --v-field-border-color: #00e5ff;
+  --v-field-border-width: 2px;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+}
+</style>
