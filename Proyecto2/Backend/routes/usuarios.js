@@ -5,17 +5,23 @@ const router = express.Router();
 module.exports = (redisClient) => {
   // Crear usuario
   router.post('/', async (req, res) => {
-    const { username, email, password_hash } = req.body;
+    const { username, email, password_hash, rol } = req.body;
+
+    if (![1, 2].includes(Number(rol))) {
+      return res.status(400).json({ mensaje: 'El rol debe ser 1 o 2' });
+    }
+
     const userId = uuidv4();
     const key = `user:${userId}`;
 
     await redisClient.hSet(key, {
       username,
       email,
-      password_hash
+      password_hash,
+      rol: String(rol) // se guarda como string en Redis
     });
 
-    res.status(201).json({ userId, mensaje: 'Usuario creado' });
+    res.status(201).json({ userId, mensaje: 'Usuario creado con rol' });
   });
 
   // Obtener todos los usuarios
@@ -46,17 +52,22 @@ module.exports = (redisClient) => {
   // Editar un usuario por ID
   router.put('/:id', async (req, res) => {
     const key = `user:${req.params.id}`;
-    const { username, email, password_hash } = req.body;
+    const { username, email, password_hash, rol } = req.body;
 
     const exists = await redisClient.exists(key);
     if (!exists) {
       return res.status(404).json({ mensaje: 'Usuario no encontrado' });
     }
 
+    if (rol !== undefined && ![1, 2].includes(Number(rol))) {
+      return res.status(400).json({ mensaje: 'El rol debe ser 1 o 2' });
+    }
+
     await redisClient.hSet(key, {
       ...(username && { username }),
       ...(email && { email }),
       ...(password_hash && { password_hash }),
+      ...(rol !== undefined && { rol: String(rol) }),
     });
 
     res.json({ mensaje: 'Usuario actualizado' });
