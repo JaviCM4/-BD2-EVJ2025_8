@@ -12,7 +12,7 @@ function init(dbCollection, resumenDbCollection) {
   resumenCollection = resumenDbCollection;
 }
 
-// Ruta para cargar CSV desde Google Drive e insertar en la colección "Aspirantes"
+// Ruta para cargar CSV desde Google Drive 
 router.post('/cargar-csv', async (req, res) => {
   const { driveUrl } = req.body;
 
@@ -349,7 +349,6 @@ router.post('/generar-resumen', async (req, res) => {
     };
 
     // Guardar o actualizar el resumen en la colección resumen_carrera
-    // Por ejemplo, guardamos un único documento (puedes cambiar la lógica)
     await resumenCollection.updateOne(
       { _id: 'resumen_general' },
       { $set: resumen },
