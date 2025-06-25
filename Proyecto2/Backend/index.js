@@ -24,6 +24,10 @@ redisClient.on('error', (err) => console.error('Redis Error:', err));
     const resenasRouter = require('./routes/resenas')(redisClient);
     app.use('/resenas', resenasRouter);
 
+    const loginRouter = require('./routes/login')(redisClient);
+    app.use('/login', loginRouter);
+
+
   const port = process.env.PORT || 3000;
   app.listen(port, () => {
     console.log(`🚀 API corriendo en http://localhost:${port}`);
