@@ -1,19 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 // Interfaces
-interface FormData {
+interface LoginData {
   username: string
-  email: string
-  password: string
-  confirmPassword: string
-}
-
-interface ApiPayload {
-  username: string
-  email: string
   password_hash: string
-  rol: number
 }
 
 interface Snackbar {
@@ -22,18 +15,18 @@ interface Snackbar {
   color: string
 }
 
+// Router
+const router = useRouter()
+
 // Refs
 const form = ref<any>(null)
 const valid = ref(false)
 const loading = ref(false)
 const showPassword = ref(false)
-const showConfirmPassword = ref(false)
 
-const formData = ref<FormData>({
+const loginData = ref<LoginData>({
   username: '',
-  email: '',
-  password: '',
-  confirmPassword: ''
+  password_hash: ''
 })
 
 const snackbar = ref<Snackbar>({
@@ -44,74 +37,117 @@ const snackbar = ref<Snackbar>({
 
 // Reglas de validación
 const usernameRules = [
-  (v: string) => !!v || 'El gamer tag es obligatorio',
+  (v: string) => !!v || 'El username es obligatorio',
   (v: string) => (v && v.length >= 3) || 'Mínimo 3 caracteres',
   (v: string) => (v && v.length <= 20) || 'Máximo 20 caracteres',
   (v: string) => /^[a-zA-Z0-9_]+$/.test(v) || 'Solo letras, números y guiones bajos'
 ]
 
-const emailRules = [
-  (v: string) => !!v || 'El email es obligatorio',
-  (v: string) => /.+@.+\..+/.test(v) || 'Email no válido'
-]
-
 const passwordRules = [
   (v: string) => !!v || 'La contraseña es obligatoria',
-  (v: string) => (v && v.length >= 8) || 'Mínimo 8 caracteres',
-  (v: string) => /(?=.*[a-z])/.test(v) || 'Debe contener al menos una minúscula',
-  (v: string) => /(?=.*[A-Z])/.test(v) || 'Debe contener al menos una mayúscula',
-  (v: string) => /(?=.*\d)/.test(v) || 'Debe contener al menos un número'
+  (v: string) => (v && v.length >= 8) || 'Mínimo 8 caracteres'
 ]
 
-// Computed
-const confirmPasswordRules = computed(() => [
-  (v: string) => !!v || 'Confirma tu contraseña',
-  (v: string) => v === formData.value.password || 'Las contraseñas no coinciden'
-])
+// Función para emitir evento personalizado para actualizar la navegación
+const notifyLoginSuccess = () => {
+  // Emitir evento personalizado que puede ser escuchado por otros componentes
+  window.dispatchEvent(new CustomEvent('user-logged-in'))
+}
 
-const submitForm = async (): Promise<void> => {
+const submitLogin = async (): Promise<void> => {
   if (form.value.validate()) {
     loading.value = true
     
     try {
-      // Preparar payload para la API
-      const payload: ApiPayload = {
-        username: formData.value.username,
-        email: formData.value.email,
-        password_hash: formData.value.password, // En producción, esto debería ser hasheado
-        rol: 2 // Fijo en 2 como solicitado
-      }
-
-      console.log('Enviando datos a la API:', payload)
-
-      // Llamada a la API usando el proxy
-      const response = await fetch('/api/usuarios', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
+      console.log('Enviando datos de login:', {
+        username: loginData.value.username,
+        password_hash: '[PROTECTED]'
       })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+      const requestData = {
+        username: loginData.value.username,
+        password_hash: loginData.value.password_hash
       }
 
-      const result = await response.json()
-      console.log('Respuesta de la API:', result)
+      // Llamada a la API
+      const response = await axios.post('/api/login', requestData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      })
+
+      console.log('Respuesta del login:', response.data)
+      
+      // Guardar datos de usuario en localStorage
+      if (response.data.id) {
+        localStorage.setItem('userId', response.data.id)
+        localStorage.setItem('username', response.data.username)
+        localStorage.setItem('userEmail', response.data.email)
+        localStorage.setItem('userRol', response.data.rol)
+        
+        // Notificar que el usuario se ha logueado exitosamente
+        notifyLoginSuccess()
+      }
       
       snackbar.value = {
         show: true,
-        message: `¡Gamer ${formData.value.username} registrado exitosamente!`,
+        message: '¡Inicio de sesión exitoso! Redirigiendo...',
         color: 'success'
       }
       
-      resetForm()
-    } catch (error) {
-      console.error('Error al registrar usuario:', error)
+      // Redireccionar según el rol del usuario
+      setTimeout(() => {
+        const userRole = response.data.rol
+        router.push('/lista-videojuegos')
+      }, 1500)
+      
+    } catch (error: any) {
+      console.error('Error en el login:', error)
+      
+      let errorMessage = 'Error al iniciar sesión. Verifica tu username y contraseña.'
+      
+      if (error.response) {
+        console.log('Status:', error.response.status)
+        console.log('Data:', error.response.data)
+        console.log('Headers:', error.response.headers)
+        
+        if (error.response.data?.message) {
+          errorMessage = error.response.data.message
+        } else if (error.response.data?.errores && Array.isArray(error.response.data.errores)) {
+          errorMessage = error.response.data.errores.join(', ')
+        } else {
+          switch (error.response.status) {
+            case 400:
+              errorMessage = 'Datos de login inválidos. Verifica el formato de username y contraseña.'
+              break
+            case 401:
+              errorMessage = 'Credenciales incorrectas. Verifica tu username y contraseña.'
+              break
+            case 404:
+              errorMessage = 'Usuario no encontrado.'
+              break
+            case 422:
+              errorMessage = 'Datos de validación incorrectos. Verifica los campos.'
+              break
+            case 500:
+              errorMessage = 'Error del servidor. Intenta más tarde.'
+              break
+            default:
+              errorMessage = `Error ${error.response.status}: ${error.response.statusText}`
+          }
+        }
+      } else if (error.request) {
+        errorMessage = 'No se pudo conectar con el servidor. Verifica tu conexión.'
+        console.log('Request:', error.request)
+      } else {
+        console.log('Error:', error.message)
+        errorMessage = 'Error de configuración: ' + error.message
+      }
+      
       snackbar.value = {
         show: true,
-        message: 'Error al registrar. Verifica la conexión con el servidor.',
+        message: errorMessage,
         color: 'error'
       }
     } finally {
@@ -123,11 +159,9 @@ const submitForm = async (): Promise<void> => {
 const resetForm = (): void => {
   form.value.reset()
   form.value.resetValidation()
-  formData.value = {
+  loginData.value = {
     username: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
+    password_hash: ''
   }
 }
 </script>
@@ -146,58 +180,41 @@ const resetForm = (): void => {
             >
               <v-card-text class="text-center py-8">
                 <v-icon size="64" color="cyan-accent-2" class="mb-4">
-                  mdi-account-plus-outline
+                  mdi-login-variant
                 </v-icon>
                 <h1 class="text-h4 font-weight-bold text-white mb-2">
-                  Registro de Usuario
+                  Iniciar Sesión
                 </h1>
                 <p class="text-subtitle-1 text-cyan-accent-2 mb-0">
-                  Panel de administración
+                  Accede a tu cuenta gamer
                 </p>
               </v-card-text>
             </v-card>
           </v-col>
         </v-row>
 
-        <!-- Formulario de registro -->
+        <!-- Formulario de login -->
         <v-row justify="center">
-          <v-col cols="12" md="10" lg="8">
+          <v-col cols="12" md="8" lg="6">
             <v-card elevation="16" class="rounded-xl glass-card">
               <v-card-title class="text-h5 font-weight-bold gaming-gradient text-white pa-6">
-                <v-icon class="mr-3" color="white">mdi-gamepad-variant</v-icon>
-                Información del Usuario
+                <v-icon class="mr-3" color="white">mdi-account-key</v-icon>
+                Credenciales de Acceso
               </v-card-title>
               
               <v-card-text class="pa-8 card-content">
                 <v-form ref="form" v-model="valid" lazy-validation>
                   <v-row>
                     <!-- Username -->
-                    <v-col cols="12" md="6">
+                    <v-col cols="12">
                       <v-text-field
-                        v-model="formData.username"
+                        v-model="loginData.username"
                         :rules="usernameRules"
                         label="Nombre de Usuario (Gamer Tag)"
                         prepend-icon="mdi-account-outline"
                         variant="outlined"
-                        density="compact"
+                        density="comfortable"
                         color="cyan-accent-2"
-                        required
-                        :loading="loading"
-                        class="gaming-input"
-                      ></v-text-field>
-                    </v-col>
-
-                    <!-- Email -->
-                    <v-col cols="12" md="6">
-                      <v-text-field
-                        v-model="formData.email"
-                        :rules="emailRules"
-                        label="Correo Electrónico"
-                        prepend-icon="mdi-email-outline"
-                        variant="outlined"
-                        density="compact"
-                        color="cyan-accent-2"
-                        type="email"
                         required
                         :loading="loading"
                         class="gaming-input"
@@ -205,43 +222,34 @@ const resetForm = (): void => {
                     </v-col>
 
                     <!-- Contraseña -->
-                    <v-col cols="12" md="6">
-                      <div class="position-relative">
-                        <v-text-field
-                          v-model="formData.password"
-                          :rules="passwordRules"
-                          :type="showPassword ? 'text' : 'password'"
-                          label="Contraseña"
-                          prepend-icon="mdi-lock-outline"
-                          :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                          @click:append="showPassword = !showPassword"
-                          variant="outlined"
-                          density="compact"
-                          color="cyan-accent-2"
-                          required
-                          :loading="loading"
-                          class="gaming-input"
-                        ></v-text-field>
-                      </div>
-                    </v-col>
-
-                    <!-- Confirmar contraseña -->
-                    <v-col cols="12" md="6">
+                    <v-col cols="12">
                       <v-text-field
-                        v-model="formData.confirmPassword"
-                        :rules="confirmPasswordRules"
-                        :type="showConfirmPassword ? 'text' : 'password'"
-                        label="Confirmar Contraseña"
-                        prepend-icon="mdi-lock-check-outline"
-                        :append-icon="showConfirmPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                        @click:append="showConfirmPassword = !showConfirmPassword"
+                        v-model="loginData.password_hash"
+                        :rules="passwordRules"
+                        :type="showPassword ? 'text' : 'password'"
+                        label="Contraseña"
+                        prepend-icon="mdi-lock-outline"
+                        :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+                        @click:append="showPassword = !showPassword"
                         variant="outlined"
-                        density="compact"
+                        density="comfortable"
                         color="cyan-accent-2"
                         required
                         :loading="loading"
                         class="gaming-input"
                       ></v-text-field>
+                    </v-col>
+
+                    <!-- Enlace de ¿Olvidaste tu contraseña? -->
+                    <v-col cols="12" class="text-right">
+                      <v-btn
+                        variant="text"
+                        color="cyan-accent-2"
+                        size="small"
+                        class="text-none"
+                      >
+                        ¿Olvidaste tu contraseña?
+                      </v-btn>
                     </v-col>
                   </v-row>
                 </v-form>
@@ -261,7 +269,7 @@ const resetForm = (): void => {
                       class="gaming-btn"
                     >
                       <v-icon start>mdi-refresh</v-icon>
-                      Limpiar Formulario
+                      Limpiar
                     </v-btn>
                   </v-col>
                   <v-col cols="12" md="6">
@@ -269,13 +277,13 @@ const resetForm = (): void => {
                       block
                       size="large"
                       color="cyan-accent-2"
-                      @click="submitForm"
+                      @click="submitLogin"
                       :disabled="!valid"
                       :loading="loading"
                       class="gaming-btn gaming-btn-primary"
                     >
-                      <v-icon start>mdi-account-plus</v-icon>
-                      Registrar Gamer
+                      <v-icon start>mdi-login</v-icon>
+                      Iniciar Sesión
                     </v-btn>
                   </v-col>
                 </v-row>
@@ -409,32 +417,21 @@ const resetForm = (): void => {
   color: #0f0f23 !important;
 }
 
-.password-info-icon {
-  position: absolute;
-  right: -35px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-}
-
-/* Efectos para inputs focus */
 .gaming-input :deep(.v-field--focused .v-field__outline) {
   --v-field-border-color: #00e5ff;
   --v-field-border-width: 2px;
   box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
 }
 
-/* Estilos para el select */
-.gaming-input :deep(.v-select__content) {
-  background: rgba(15, 15, 35, 0.95) !important;
-  border: 1px solid rgba(0, 255, 255, 0.3);
+:deep(.v-divider) {
+  border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
-.gaming-input :deep(.v-list-item--active) {
-  background: rgba(0, 255, 255, 0.1) !important;
+:deep(.v-btn--variant-text) {
+  color: rgba(0, 229, 255, 0.8) !important;
 }
 
-.gaming-input :deep(.v-list-item__title) {
-  color: white !important;
+:deep(.v-btn--variant-text:hover) {
+  background: rgba(0, 229, 255, 0.1) !important;
 }
 </style>

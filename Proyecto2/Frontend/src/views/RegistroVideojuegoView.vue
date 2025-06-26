@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import axios from 'axios'
 
 // Interfaces
 interface GameFormData {
   titulo: string
   genero: string
-  descripcion: string
   desarrollador: string
-  ano: number | null
 }
 
 interface Snackbar {
@@ -15,6 +14,8 @@ interface Snackbar {
   message: string
   color: string
 }
+
+// No configuramos baseURL para usar el proxy de Vite
 
 // Refs
 const form = ref<any>(null)
@@ -24,9 +25,7 @@ const loading = ref(false)
 const formData = ref<GameFormData>({
   titulo: '',
   genero: '',
-  descripcion: '',
-  desarrollador: '',
-  ano: null
+  desarrollador: ''
 })
 
 const snackbar = ref<Snackbar>({
@@ -64,43 +63,87 @@ const generoRules = [
   (v: string) => !!v || 'El género es obligatorio'
 ]
 
-const descripcionRules = [
-  (v: string) => !!v || 'La descripción es obligatoria',
-  (v: string) => (v && v.length >= 10) || 'Mínimo 10 caracteres',
-  (v: string) => (v && v.length <= 500) || 'Máximo 500 caracteres'
-]
-
 const desarrolladorRules = [
   (v: string) => !!v || 'El desarrollador es obligatorio',
   (v: string) => (v && v.length >= 2) || 'Mínimo 2 caracteres',
   (v: string) => (v && v.length <= 50) || 'Máximo 50 caracteres'
 ]
 
-const anoRules = [
-  (v: number) => !!v || 'El año es obligatorio',
-  (v: number) => v >= 1970 || 'El año debe ser mayor a 1970',
-  (v: number) => v <= new Date().getFullYear() + 2 || 'El año no puede ser muy futuro'
-]
-
 const submitForm = async (): Promise<void> => {
   if (form.value.validate()) {
     loading.value = true
     
-    // Simular llamada a API
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      snackbar.value = {
-        show: true,
-        message: `¡Videojuego "${formData.value.titulo}" registrado exitosamente!`,
-        color: 'success'
+      // Preparar datos para enviar a la API
+      const gameData = {
+        title: formData.value.titulo,
+        genre: formData.value.genero,
+        developer: formData.value.desarrollador
+      }
+
+      // Enviar datos a la API
+      const response = await axios.post('/api/juegos', gameData, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 10000 // 10 segundos de timeout
+      })
+
+      // Manejar respuesta exitosa
+      if (response.status === 200 || response.status === 201) {
+        snackbar.value = {
+          show: true,
+          message: `¡Videojuego "${formData.value.titulo}" registrado exitosamente!`,
+          color: 'success'
+        }
+        
+        resetForm()
       }
       
-      resetForm()
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error al registrar videojuego:', error)
+      
+      let errorMessage = 'Error al registrar el videojuego. Inténtalo de nuevo.'
+      
+      // Manejar diferentes tipos de errores
+      if (error.response) {
+        // El servidor respondió con un código de error
+        const status = error.response.status
+        const data = error.response.data
+        
+        switch (status) {
+          case 400:
+            errorMessage = data.message || 'Datos inválidos. Verifica la información.'
+            break
+          case 401:
+            errorMessage = 'No autorizado. Verifica tus credenciales.'
+            break
+          case 403:
+            errorMessage = 'No tienes permisos para realizar esta acción.'
+            break
+          case 404:
+            errorMessage = 'Endpoint no encontrado. Verifica la URL de la API.'
+            break
+          case 409:
+            errorMessage = 'El videojuego ya existe en la base de datos.'
+            break
+          case 500:
+            errorMessage = 'Error interno del servidor. Inténtalo más tarde.'
+            break
+          default:
+            errorMessage = data.message || `Error del servidor (${status})`
+        }
+      } else if (error.request) {
+        // No se recibió respuesta del servidor
+        errorMessage = 'No se pudo conectar con el servidor. Verifica tu conexión.'
+      } else if (error.code === 'ECONNABORTED') {
+        // Timeout
+        errorMessage = 'La petición tardó demasiado. Inténtalo de nuevo.'
+      }
+      
       snackbar.value = {
         show: true,
-        message: 'Error al registrar el videojuego. Inténtalo de nuevo.',
+        message: errorMessage,
         color: 'error'
       }
     } finally {
@@ -115,9 +158,7 @@ const resetForm = (): void => {
   formData.value = {
     titulo: '',
     genero: '',
-    descripcion: '',
-    desarrollador: '',
-    ano: null
+    desarrollador: ''
   }
 }
 </script>
@@ -162,7 +203,7 @@ const resetForm = (): void => {
                 <v-form ref="form" v-model="valid" lazy-validation>
                   <v-row>
                     <!-- Título -->
-                    <v-col cols="12" md="8">
+                    <v-col cols="12" md="6">
                       <v-text-field
                         v-model="formData.titulo"
                         :rules="tituloRules"
@@ -174,25 +215,7 @@ const resetForm = (): void => {
                         required
                         :loading="loading"
                         class="gaming-input"
-                        placeholder="Ej: The Legend of Zelda: Breath of the Wild"
-                      ></v-text-field>
-                    </v-col>
-
-                    <!-- Año -->
-                    <v-col cols="12" md="4">
-                      <v-text-field
-                        v-model.number="formData.ano"
-                        :rules="anoRules"
-                        label="Año de Lanzamiento"
-                        prepend-icon="mdi-calendar"
-                        variant="outlined"
-                        density="compact"
-                        color="cyan-accent-2"
-                        type="number"
-                        required
-                        :loading="loading"
-                        class="gaming-input"
-                        placeholder="2024"
+                        placeholder="Ej: The Legend of Zelda"
                       ></v-text-field>
                     </v-col>
 
@@ -214,7 +237,7 @@ const resetForm = (): void => {
                     </v-col>
 
                     <!-- Desarrollador -->
-                    <v-col cols="12" md="6">
+                    <v-col cols="12">
                       <v-text-field
                         v-model="formData.desarrollador"
                         :rules="desarrolladorRules"
@@ -226,27 +249,8 @@ const resetForm = (): void => {
                         required
                         :loading="loading"
                         class="gaming-input"
-                        placeholder="Ej: Nintendo EPD"
+                        placeholder="Ej: Nintendo"
                       ></v-text-field>
-                    </v-col>
-
-                    <!-- Descripción -->
-                    <v-col cols="12">
-                      <v-textarea
-                        v-model="formData.descripcion"
-                        :rules="descripcionRules"
-                        label="Descripción del Juego"
-                        prepend-icon="mdi-text"
-                        variant="outlined"
-                        density="compact"
-                        color="cyan-accent-2"
-                        required
-                        :loading="loading"
-                        class="gaming-input"
-                        rows="4"
-                        placeholder="Describe la historia, jugabilidad, características principales..."
-                        counter="500"
-                      ></v-textarea>
                     </v-col>
                   </v-row>
                 </v-form>

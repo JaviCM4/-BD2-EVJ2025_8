@@ -1,17 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
 import RegistroUsuariosView from '@/views/RegistroUsuarioView.vue'
 import UsuariosView from '@/views/UsuariosView.vue'
 import RegistroVideojuegoView from '@/views/RegistroVideojuegoView.vue'
 import VideoJuegosView from '@/views/VideoJuegosView.vue'
+import LoginView from '@/views/LoginView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: HomeView,
+      name: 'iniciar-sesion',
+      component: LoginView,
     },
     {
       path: '/registro-usuario',
@@ -19,8 +19,8 @@ const router = createRouter({
       component: RegistroUsuariosView,
     },
     {
-      path: '/usuarios',
-      name: 'usuarios',
+      path: '/lista-usuarios',
+      name: 'lista-usuarios',
       component: UsuariosView,
     },
     {
@@ -29,8 +29,8 @@ const router = createRouter({
       component: RegistroVideojuegoView,
     },
     {
-      path: '/videojuegos',
-      name: 'videojuegos',
+      path: '/lista-videojuegos',
+      name: 'lista-videojuegos',
       component: VideoJuegosView,
     }
   ],

@@ -37,6 +37,7 @@
               color="cyan-accent-2"
               class="gaming-input"
               clearable
+              :disabled="loading"
             >
               <template v-slot:append-inner>
                 <v-icon color="cyan-accent-2">mdi-account-search</v-icon>
@@ -52,10 +53,59 @@
               <v-card-title class="text-h5 font-weight-bold gaming-gradient text-white pa-6">
                 <v-icon class="mr-3" color="white">mdi-gamepad-variant</v-icon>
                 Gamers Registrados
+                <v-spacer></v-spacer>
+                <v-btn
+                  @click="loadUsers"
+                  :loading="loading"
+                  color="white"
+                  variant="outlined"
+                  size="small"
+                >
+                  <v-icon start>mdi-refresh</v-icon>
+                  Actualizar
+                </v-btn>
               </v-card-title>
               
               <v-card-text class="pa-0 card-content">
-                <v-list class="transparent">
+                <!-- Loading spinner -->
+                <div v-if="loading" class="text-center py-12">
+                  <v-progress-circular
+                    indeterminate
+                    size="64"
+                    color="cyan-accent-2"
+                    class="mb-4"
+                  ></v-progress-circular>
+                  <h3 class="text-h6 text-dark mb-2">
+                    Cargando gamers...
+                  </h3>
+                  <p class="text-dark">
+                    Obteniendo datos del servidor
+                  </p>
+                </div>
+
+                <!-- Error state -->
+                <div v-else-if="error" class="text-center py-12">
+                  <v-icon size="64" color="error" class="mb-4">
+                    mdi-alert-circle-outline
+                  </v-icon>
+                  <h3 class="text-h6 text-error mb-2">
+                    Error al cargar datos
+                  </h3>
+                  <p class="text-dark mb-4">
+                    {{ error }}
+                  </p>
+                  <v-btn
+                    @click="loadUsers"
+                    color="error"
+                    variant="outlined"
+                  >
+                    <v-icon start>mdi-refresh</v-icon>
+                    Reintentar
+                  </v-btn>
+                </div>
+
+                <!-- Lista de usuarios -->
+                <v-list v-else class="transparent">
                   <template v-for="(user, index) in filteredUsers" :key="user.id">
                     <v-list-item
                       class="gaming-list-item px-6 py-4"
@@ -77,9 +127,20 @@
                         {{ user.username }}
                       </v-list-item-title>
                       
-                      <v-list-item-subtitle class="text-dark-secondary">
+                      <v-list-item-subtitle class="text-dark-secondary mb-1">
                         <v-icon size="16" class="mr-2" color="dark-secondary">mdi-email</v-icon>
                         {{ user.email }}
+                      </v-list-item-subtitle>
+
+                      <v-list-item-subtitle class="text-dark-secondary">
+                        <v-chip
+                          :color="getRoleColor(user.rol)"
+                          size="small"
+                          variant="tonal"
+                        >
+                          <v-icon start size="16">{{ getRoleIcon(user.rol) }}</v-icon>
+                          {{ getRoleName(user.rol) }}
+                        </v-chip>
                       </v-list-item-subtitle>
 
                       <template v-slot:append>
@@ -88,7 +149,7 @@
                             size="small"
                             color="cyan-accent-2"
                             variant="outlined"
-                            class="gaming-btn-mini"x
+                            class="gaming-btn-mini"
                           >
                             <v-icon size="16">mdi-information</v-icon>
                           </v-btn>
@@ -104,14 +165,14 @@
                 </v-list>
 
                 <!-- Estado vacío -->
-                <div v-if="filteredUsers.length === 0" class="text-center py-12">
+                <div v-if="!loading && !error && filteredUsers.length === 0" class="text-center py-12">
                   <v-icon size="64" color="cyan-accent-2" class="mb-4">
                     mdi-account-search-outline
                   </v-icon>
-                  <h3 class="text-h6 text-white mb-2">
+                  <h3 class="text-h6 text-dark mb-2">
                     {{ searchQuery ? 'No se encontraron gamers' : 'No hay gamers registrados' }}
                   </h3>
-                  <p class="text-cyan-accent-2">
+                  <p class="text-dark">
                     {{ searchQuery ? 'Intenta con otro término de búsqueda' : 'Los nuevos registros aparecerán aquí' }}
                   </p>
                 </div>
@@ -142,28 +203,27 @@
                 {{ getAvatarIcon(selectedUser.username) }}
               </v-icon>
             </v-avatar>
-            <h2 class="text-h5 text-white font-weight-bold mb-2">
+            <h2 class="text-h5 text-dark font-weight-bold mb-2">
               {{ selectedUser.username }}
             </h2>
+            <v-chip
+              :color="getRoleColor(selectedUser.rol)"
+              size="large"
+              variant="tonal"
+            >
+              <v-icon start size="20">{{ getRoleIcon(selectedUser.rol) }}</v-icon>
+              {{ getRoleName(selectedUser.rol) }}
+            </v-chip>
           </div>
 
           <!-- Información detallada -->
           <v-row>
-            <v-col cols="12" md="6">
+            <v-col cols="12">
               <div class="info-item mb-4">
-                <v-icon color="cyan-accent-2" class="mr-2">mdi-account</v-icon>
+                <v-icon color="cyan-accent-2" class="mr-2">mdi-identifier</v-icon>
                 <div>
-                  <p class="text-dark font-weight-bold text-h6 mb-1">Nombres</p>
-                  <p class="text-dark">{{ selectedUser.firstName }}</p>
-                </div>
-              </div>
-            </v-col>
-            <v-col cols="12" md="6">
-              <div class="info-item mb-4">
-                <v-icon color="cyan-accent-2" class="mr-2">mdi-account-circle</v-icon>
-                <div>
-                  <p class="text-dark font-weight-bold text-h6 mb-1">Apellidos</p>
-                  <p class="text-dark">{{ selectedUser.lastName }}</p>
+                  <p class="text-dark font-weight-bold text-h6 mb-1">ID de Usuario</p>
+                  <p class="text-dark text-body-2" style="font-family: monospace;">{{ selectedUser.id }}</p>
                 </div>
               </div>
             </v-col>
@@ -173,6 +233,15 @@
                 <div>
                   <p class="text-dark font-weight-bold text-h6 mb-1">Correo Electrónico</p>
                   <p class="text-dark">{{ selectedUser.email }}</p>
+                </div>
+              </div>
+            </v-col>
+            <v-col cols="12">
+              <div class="info-item mb-4">
+                <v-icon color="cyan-accent-2" class="mr-2">mdi-shield-account</v-icon>
+                <div>
+                  <p class="text-dark font-weight-bold text-h6 mb-1">Rol</p>
+                  <p class="text-dark">{{ getRoleName(selectedUser.rol) }}</p>
                 </div>
               </div>
             </v-col>
@@ -225,16 +294,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
 
 // Interfaces
 interface User {
-  id: number
+  id: string
   username: string
-  firstName: string
-  lastName: string
   email: string
-  createdAt: string
-  lastLogin: string
+  password_hash: string
+  rol: string
 }
 
 interface Snackbar {
@@ -248,6 +316,8 @@ const searchQuery = ref('')
 const dialog = ref(false)
 const selectedUser = ref<User | null>(null)
 const deleting = ref(false)
+const loading = ref(false)
+const error = ref<string | null>(null)
 
 const snackbar = ref<Snackbar>({
   show: false,
@@ -255,54 +325,8 @@ const snackbar = ref<Snackbar>({
   color: 'success'
 })
 
-// Datos de ejemplo
-const users = ref<User[]>([
-  {
-    id: 1,
-    username: 'GamerPro2024',
-    firstName: 'Juan Carlos',
-    lastName: 'García López',
-    email: 'juan.garcia@email.com',
-    createdAt: '2024-01-15T10:30:00Z',
-    lastLogin: '2024-06-22T14:45:00Z'
-  },
-  {
-    id: 2,
-    username: 'PixelWarrior',
-    firstName: 'María Elena',
-    lastName: 'Rodríguez Silva',
-    email: 'maria.rodriguez@email.com',
-    createdAt: '2024-02-03T09:15:00Z',
-    lastLogin: '2024-06-23T08:20:00Z'
-  },
-  {
-    id: 3,
-    username: 'DragonSlayer99',
-    firstName: 'Carlos Alberto',
-    lastName: 'Mendez Torres',
-    email: 'carlos.mendez@email.com',
-    createdAt: '2024-01-28T16:22:00Z',
-    lastLogin: '2024-06-10T12:30:00Z'
-  },
-  {
-    id: 4,
-    username: 'NeonHunter',
-    firstName: 'Ana Lucía',
-    lastName: 'Vargas Morales',
-    email: 'ana.vargas@email.com',
-    createdAt: '2024-03-12T11:45:00Z',
-    lastLogin: '2024-06-23T16:10:00Z'
-  },
-  {
-    id: 5,
-    username: 'CyberNinja',
-    firstName: 'Roberto José',
-    lastName: 'Fernández Cruz',
-    email: 'roberto.fernandez@email.com',
-    createdAt: '2024-02-20T13:55:00Z',
-    lastLogin: '2024-06-22T19:25:00Z'
-  }
-])
+// Lista de usuarios desde la API
+const users = ref<User[]>([])
 
 // Computed
 const filteredUsers = computed(() => {
@@ -311,13 +335,37 @@ const filteredUsers = computed(() => {
   const query = searchQuery.value.toLowerCase()
   return users.value.filter(user =>
     user.username.toLowerCase().includes(query) ||
-    user.firstName.toLowerCase().includes(query) ||
-    user.lastName.toLowerCase().includes(query) ||
     user.email.toLowerCase().includes(query)
   )
 })
 
 // Methods
+const loadUsers = async (): Promise<void> => {
+  loading.value = true
+  error.value = null
+  
+  try {
+    const response = await axios.get('/api/usuarios')
+    users.value = response.data
+    
+    snackbar.value = {
+      show: true,
+      message: `${users.value.length} gamers cargados exitosamente`,
+      color: 'success'
+    }
+  } catch (err: any) {
+    error.value = err.response?.data?.message || 'Error al cargar los usuarios'
+    snackbar.value = {
+      show: true,
+      message: 'Error al cargar los usuarios',
+      color: 'error'
+    }
+    console.error('Error loading users:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
 const openUserDetail = (user: User): void => {
   selectedUser.value = user
   dialog.value = true
@@ -334,10 +382,10 @@ const deleteUser = async (): Promise<void> => {
   deleting.value = true
   
   try {
-    // Simular llamada a API
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Llamada a la API para eliminar usuario
+    await axios.delete(`/api/usuarios/${selectedUser.value.id}`)
     
-    // Eliminar usuario de la lista
+    // Eliminar usuario de la lista local
     const index = users.value.findIndex(u => u.id === selectedUser.value!.id)
     if (index > -1) {
       users.value.splice(index, 1)
@@ -353,26 +401,49 @@ const deleteUser = async (): Promise<void> => {
     dialog.value = false
     selectedUser.value = null
     
-  } catch (error) {
+  } catch (err: any) {
     snackbar.value = {
       show: true,
-      message: 'Error al eliminar el gamer. Inténtalo de nuevo.',
+      message: err.response?.data?.message || 'Error al eliminar el gamer. Inténtalo de nuevo.',
       color: 'error'
     }
+    console.error('Error deleting user:', err)
   } finally {
     deleting.value = false
   }
 }
 
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('es-ES', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+const getRoleName = (rol: string): string => {
+  switch (rol) {
+    case '1':
+      return 'Administrador'
+    case '2':
+      return 'Usuario'
+    default:
+      return 'Desconocido'
+  }
+}
+
+const getRoleColor = (rol: string): string => {
+  switch (rol) {
+    case '1':
+      return 'red-darken-2'
+    case '2':
+      return 'blue-darken-2'
+    default:
+      return 'grey'
+  }
+}
+
+const getRoleIcon = (rol: string): string => {
+  switch (rol) {
+    case '1':
+      return 'mdi-shield-crown'
+    case '2':
+      return 'mdi-account-circle'
+    default:
+      return 'mdi-help-circle'
+  }
 }
 
 const getAvatarColor = (username: string): string => {
@@ -387,9 +458,9 @@ const getAvatarIcon = (username: string): string => {
   return icons[index]
 }
 
+// Lifecycle
 onMounted(() => {
-  // Aquí podrías cargar los usuarios desde una API
-  console.log('Lista de usuarios cargada')
+  loadUsers()
 })
 </script>
 

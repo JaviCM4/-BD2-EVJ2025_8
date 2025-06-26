@@ -25,8 +25,20 @@
           </v-col>
         </v-row>
 
+        <!-- Indicador de carga -->
+        <v-row justify="center" class="mb-4" v-if="loading">
+          <v-col cols="12" class="text-center">
+            <v-progress-circular
+              indeterminate
+              color="cyan-accent-2"
+              size="64"
+            ></v-progress-circular>
+            <p class="text-white mt-4">Cargando videojuegos...</p>
+          </v-col>
+        </v-row>
+
         <!-- Barra de búsqueda -->
-        <v-row justify="center" class="mb-4">
+        <v-row justify="center" class="mb-4" v-if="!loading">
           <v-col cols="12" md="8" lg="6">
             <v-text-field
               v-model="busqueda"
@@ -46,7 +58,7 @@
         </v-row>
 
         <!-- Lista de videojuegos -->
-        <v-row justify="center">
+        <v-row justify="center" v-if="!loading">
           <v-col cols="12" md="12" lg="12">
             <v-card elevation="16" class="rounded-xl glass-card">
               <v-card-title class="text-h5 font-weight-bold gaming-gradient text-white pa-6">
@@ -68,16 +80,16 @@
                             <v-avatar
                               size="80"
                               class="gaming-avatar mr-6"
-                              :color="getAvatarColor(game.titulo)"
+                              :color="getAvatarColor(game.title)"
                             >
                               <v-icon size="40" color="white">
-                                {{ getGenreIcon(game.genero) }}
+                                {{ getGenreIcon(game.genre) }}
                               </v-icon>
                             </v-avatar>
                             
                             <div class="flex-grow-1">
                               <h2 class="text-h4 font-weight-bold text-dark mb-2">
-                                {{ game.titulo }}
+                                {{ game.title }}
                               </h2>
                               
                               <!-- Información básica en chips -->
@@ -88,7 +100,7 @@
                                   size="small"
                                   prepend-icon="mdi-tag"
                                 >
-                                  {{ game.genero }}
+                                  {{ game.genre }}
                                 </v-chip>
                                 <v-chip
                                   color="purple"
@@ -96,15 +108,7 @@
                                   size="small"
                                   prepend-icon="mdi-domain"
                                 >
-                                  {{ game.desarrollador }}
-                                </v-chip>
-                                <v-chip
-                                  color="amber"
-                                  variant="outlined"
-                                  size="small"
-                                  prepend-icon="mdi-calendar"
-                                >
-                                  {{ game.ano }}
+                                  {{ game.developer }}
                                 </v-chip>
                               </div>
                               
@@ -145,22 +149,6 @@
                           </v-col>
                         </v-row>
                         
-                        <!-- Descripción completa -->
-                        <v-row class="mt-2">
-                          <v-col cols="12">
-                            <v-divider class="mb-4"></v-divider>
-                            <div class="d-flex align-start">
-                              <v-icon color="cyan-accent-2" class="mr-2 mt-1" size="20">mdi-text</v-icon>
-                              <div>
-                                <h4 class="text-subtitle-1 font-weight-bold text-dark mb-2">Descripción</h4>
-                                <p class="text-body-1 text-dark-secondary mb-0 line-height-relaxed">
-                                  {{ game.descripcion }}
-                                </p>
-                              </div>
-                            </div>
-                          </v-col>
-                        </v-row>
-                        
                         <!-- Información detallada -->
                         <v-row class="mt-4">
                           <v-col cols="12">
@@ -171,32 +159,22 @@
                             </h4>
                             
                             <v-row>
-                              <v-col cols="12" md="4">
+                              <v-col cols="12" md="6">
                                 <div class="info-detail-item">
                                   <v-icon color="purple" size="18" class="mr-2">mdi-domain</v-icon>
                                   <div>
                                     <span class="text-caption text-dark-secondary">Desarrollador</span>
-                                    <p class="text-body-2 font-weight-medium text-dark mb-0">{{ game.desarrollador }}</p>
+                                    <p class="text-body-2 font-weight-medium text-dark mb-0">{{ game.developer }}</p>
                                   </div>
                                 </div>
                               </v-col>
                               
-                              <v-col cols="12" md="4">
-                                <div class="info-detail-item">
-                                  <v-icon color="amber" size="18" class="mr-2">mdi-calendar</v-icon>
-                                  <div>
-                                    <span class="text-caption text-dark-secondary">Año de Lanzamiento</span>
-                                    <p class="text-body-2 font-weight-medium text-dark mb-0">{{ game.ano }}</p>
-                                  </div>
-                                </div>
-                              </v-col>
-                              
-                              <v-col cols="12" md="4">
+                              <v-col cols="12" md="6">
                                 <div class="info-detail-item">
                                   <v-icon color="cyan-accent-2" size="18" class="mr-2">mdi-tag</v-icon>
                                   <div>
                                     <span class="text-caption text-dark-secondary">Género</span>
-                                    <p class="text-body-2 font-weight-medium text-dark mb-0">{{ game.genero }}</p>
+                                    <p class="text-body-2 font-weight-medium text-dark mb-0">{{ game.genre }}</p>
                                   </div>
                                 </div>
                               </v-col>
@@ -216,28 +194,27 @@
                             <div class="d-flex flex-column gap-3">
                               <div 
                                 v-for="review in game.reviews.slice(0, 2)" 
-                                :key="review.id"
+                                :key="review.game_id"
                                 class="review-preview-item"
                               >
                                 <div class="d-flex align-center mb-2">
-                                  <v-avatar size="24" :color="getAvatarColor(review.usuario)" class="mr-2">
+                                  <v-avatar size="24" :color="getAvatarColor(review.user_id)" class="mr-2">
                                     <span class="text-white text-caption font-weight-bold">
-                                      {{ review.usuario.charAt(0).toUpperCase() }}
+                                      {{ review.user_id.charAt(0).toUpperCase() }}
                                     </span>
                                   </v-avatar>
-                                  <span class="text-body-2 font-weight-medium text-dark mr-2">{{ review.usuario }}</span>
+                                  <span class="text-body-2 font-weight-medium text-dark mr-2">{{ review.user_id }}</span>
                                   <v-rating
-                                    :model-value="review.calificacion"
+                                    :model-value="review.score"
                                     color="amber"
                                     density="compact"
                                     readonly
                                     size="x-small"
                                     class="mr-2"
                                   ></v-rating>
-                                  <span class="text-caption text-dark-secondary">{{ formatDate(review.fecha) }}</span>
                                 </div>
                                 <p class="text-body-2 text-dark-secondary mb-0 ml-8">
-                                  {{ review.comentario.length > 100 ? review.comentario.substring(0, 100) + '...' : review.comentario }}
+                                  {{ review.comment.length > 100 ? review.comment.substring(0, 100) + '...' : review.comment }}
                                 </p>
                               </div>
                               
@@ -281,7 +258,7 @@
                 </div>
 
                 <!-- Estado vacío -->
-                <div v-if="filteredGames.length === 0" class="text-center py-12">
+                <div v-if="filteredGames.length === 0 && !loading" class="text-center py-12">
                   <v-icon size="64" color="cyan-accent-2" class="mb-4">
                     mdi-gamepad-square-outline
                   </v-icon>
@@ -291,6 +268,23 @@
                   <p class="text-cyan-accent-2">
                     {{ busqueda ? 'Intenta con otro término de búsqueda' : 'Los nuevos juegos aparecerán aquí' }}
                   </p>
+                </div>
+
+                <!-- Estado de error -->
+                <div v-if="error && !loading" class="text-center py-12">
+                  <v-icon size="64" color="red" class="mb-4">
+                    mdi-alert-circle-outline
+                  </v-icon>
+                  <h3 class="text-h6 text-white mb-2">Error al cargar los videojuegos</h3>
+                  <p class="text-red-accent-2 mb-4">{{ error }}</p>
+                  <v-btn
+                    color="cyan-accent-2"
+                    variant="outlined"
+                    @click="cargarVideojuegos"
+                  >
+                    <v-icon start>mdi-refresh</v-icon>
+                    Reintentar
+                  </v-btn>
                 </div>
               </v-card-text>
             </v-card>
@@ -304,7 +298,7 @@
       <v-card class="glass-card gaming-modal">
         <v-card-title class="gaming-gradient text-white pa-6">
           <v-icon class="mr-3" color="white">mdi-star-outline</v-icon>
-          Reseñas de {{ selectedGameForReviews?.titulo }}
+          Reseñas de {{ selectedGameForReviews?.title }}
         </v-card-title>
 
         <v-card-text class="pa-6 card-content" style="max-height: 70vh; overflow-y: auto;">
@@ -376,32 +370,31 @@
             
             <v-card
               v-for="review in selectedGameForReviews.reviews"
-              :key="review.id"
+              :key="review.game_id"
               class="mb-4 elevation-2"
               color="rgba(255, 255, 255, 0.95)"
             >
               <v-card-text class="pb-2">
                 <div class="d-flex justify-space-between align-center mb-2">
                   <div class="d-flex align-center">
-                    <v-avatar size="32" :color="getAvatarColor(review.usuario)" class="mr-3">
+                    <v-avatar size="32" :color="getAvatarColor(review.user_id)" class="mr-3">
                       <span class="text-white text-caption font-weight-bold">
-                        {{ review.usuario.charAt(0).toUpperCase() }}
+                        {{ review.user_id.charAt(0).toUpperCase() }}
                       </span>
                     </v-avatar>
                     <div>
-                      <p class="text-dark font-weight-bold mb-0">{{ review.usuario }}</p>
-                      <p class="text-dark-secondary text-caption">{{ formatDate(review.fecha) }}</p>
+                      <p class="text-dark font-weight-bold mb-0">{{ review.user_id }}</p>
                     </div>
                   </div>
                   <v-rating
-                    :model-value="review.calificacion"
+                    :model-value="review.score"
                     color="amber"
                     density="compact"
                     readonly
                     size="small"
                   ></v-rating>
                 </div>
-                <p class="text-dark mb-0">{{ review.comentario }}</p>
+                <p class="text-dark mb-0">{{ review.comment }}</p>
               </v-card-text>
             </v-card>
           </div>
@@ -449,23 +442,21 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import axios from 'axios'
 
 // Interfaces
 interface Resenia {
-  id: number
-  usuario: string
-  calificacion: number
-  comentario: string
-  fecha: string
+  game_id: number
+  user_id: string
+  score: number
+  comment: string
 }
 
 interface Videojuego {
-  id: number
-  titulo: string
-  genero: string
-  descripcion: string
-  desarrollador: string
-  ano: number
+  id: string
+  title: string
+  genre: string
+  developer: string
   reviews: Resenia[]
 }
 
@@ -482,6 +473,8 @@ const selectedGameForReviews = ref<Videojuego | null>(null)
 const addingReview = ref(false)
 const reseniaValida = ref(false)
 const reseniaFormulario = ref<any>(null)
+const loading = ref(false)
+const error = ref<string | null>(null)
 
 const nuevaResenia = ref({
   usuario: '',
@@ -495,100 +488,8 @@ const snackbar = ref<Snackbar>({
   color: 'success'
 })
 
-// Datos de ejemplo
-const videogames = ref<Videojuego[]>([
-  {
-    id: 1,
-    titulo: 'The Legend of Zelda: Breath of the Wild',
-    genero: 'Aventura',
-    descripcion: 'Un juego de aventuras en mundo abierto que reinventa la serie Zelda con una libertad sin precedentes. Los jugadores pueden explorar la vasta región de Hyrule de la manera que deseen, escalando montañas, planeando desde las alturas y descubriendo secretos ocultos en cada rincón del mundo.',
-    desarrollador: 'Nintendo EPD',
-    ano: 2017,
-    reviews: [
-      {
-        id: 1,
-        usuario: 'GamerPro2024',
-        calificacion: 5,
-        comentario: 'Increíble juego, la libertad de exploración es fantástica. Los puzzles de los santuarios son geniales y la física del juego permite soluciones creativas que nunca pensé que serían posibles.',
-        fecha: '2024-06-15T10:30:00Z'
-      },
-      {
-        id: 2,
-        usuario: 'PixelWarrior',
-        calificacion: 4,
-        comentario: 'Excelente mundo abierto, aunque a veces se siente un poco vacío. La mecánica de escalada es innovadora y la banda sonora es absolutamente hermosa.',
-        fecha: '2024-06-10T14:20:00Z'
-      }
-    ]
-  },
-  {
-    id: 2,
-    titulo: 'Cyberpunk 2077',
-    genero: 'RPG',
-    descripcion: 'Un RPG de mundo abierto ambientado en Night City, una megalópolis obsesionada con el poder, la ostentación y la modificación corporal. Los jugadores asumen el papel de V, un mercenario en busca de un implante único que es la clave de la inmortalidad.',
-    desarrollador: 'CD Projekt RED',
-    ano: 2020,
-    reviews: [
-      {
-        id: 3,
-        usuario: 'CyberNinja',
-        calificacion: 3,
-        comentario: 'Después de las actualizaciones está mucho mejor. La historia es interesante pero los bugs siguen siendo un problema ocasional. Los gráficos son impresionantes en PC.',
-        fecha: '2024-06-12T16:45:00Z'
-      }
-    ]
-  },
-  {
-    id: 3,
-    titulo: 'God of War',
-    genero: 'Acción',
-    descripcion: 'Kratos vive ahora como un hombre en las tierras de los dioses y monstruos nórdicos. En este mundo hostil, debe luchar por sobrevivir y enseñar a su hijo a hacer lo mismo. Esta nueva aventura redefine la serie con una narrativa madura y un combate visceral.',
-    desarrollador: 'Santa Monica Studio',
-    ano: 2018,
-    reviews: [
-      {
-        id: 4,
-        usuario: 'DragonSlayer99',
-        calificacion: 5,
-        comentario: 'Una obra maestra absoluta. La relación entre Kratos y Atreus está perfectamente desarrollada. El combate es satisfactorio y la cinematografía es de primer nivel.',
-        fecha: '2024-06-08T12:15:00Z'
-      },
-      {
-        id: 5,
-        usuario: 'NeonHunter',
-        calificacion: 5,
-        comentario: 'El combate es visceral y satisfactorio. Los gráficos son impresionantes. La evolución del personaje de Kratos es fenomenal. 10/10.',
-        fecha: '2024-06-05T18:30:00Z'
-      }
-    ]
-  },
-  {
-    id: 4,
-    titulo: 'Hollow Knight',
-    genero: 'Indie',
-    descripcion: 'Un juego de aventuras clásico en 2D ambientado en un vasto mundo interconectado lleno de secretos por descubrir, insectos amigables y bestias peligrosas. Forja tu propio camino en Hollow Knight, una aventura de acción épica en un reino en ruinas.',
-    desarrollador: 'Team Cherry',
-    ano: 2017,
-    reviews: []
-  },
-  {
-    id: 5,
-    titulo: 'Elden Ring',
-    genero: 'RPG',
-    descripcion: 'Un nuevo juego de rol de fantasía desarrollado por FromSoftware Inc. y producido por BANDAI NAMCO Entertainment Inc. Elden Ring combina la jugabilidad característica de Dark Souls con un mundo abierto creado en colaboración con George R.R. Martin.',
-    desarrollador: 'FromSoftware',
-    ano: 2022,
-    reviews: [
-      {
-        id: 6,
-        usuario: 'SoulsBorne',
-        calificacion: 4,
-        comentario: 'Difícil pero justo. El mundo abierto añade una nueva dimensión a la fórmula de Dark Souls. Los jefes son épicos y el lore es fascinante.',
-        fecha: '2024-06-20T09:45:00Z'
-      }
-    ]
-  }
-])
+// Datos
+const videogames = ref<Videojuego[]>([])
 
 // Computed
 const filteredGames = computed(() => {
@@ -596,14 +497,43 @@ const filteredGames = computed(() => {
   
   const query = busqueda.value.toLowerCase()
   return videogames.value.filter(game =>
-    game.titulo.toLowerCase().includes(query) ||
-    game.genero.toLowerCase().includes(query) ||
-    game.desarrollador.toLowerCase().includes(query) ||
-    game.descripcion.toLowerCase().includes(query)
+    game.title.toLowerCase().includes(query) ||
+    game.genre.toLowerCase().includes(query) ||
+    game.developer.toLowerCase().includes(query)
   )
 })
 
-// Metodos
+// Métodos
+const cargarVideojuegos = async (): Promise<void> => {
+  loading.value = true
+  error.value = null
+  
+  try {
+    const response = await axios.get('/api/juegos')
+    
+    // Mapear los datos de la API al formato local y agregar array de reviews vacío
+    videogames.value = response.data.map((game: any) => ({
+      id: game.id,
+      title: game.title,
+      genre: game.genre,
+      developer: game.developer,
+      reviews: [] // Array vacío para las reseñas (se manejará después)
+    }))
+    
+  } catch (err: any) {
+    error.value = err.response?.data?.message || 'Error al cargar los videojuegos'
+    console.error('Error cargando videojuegos:', err)
+    
+    snackbar.value = {
+      show: true,
+      message: 'Error al cargar los videojuegos desde la API',
+      color: 'error'
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
 const abrirResenias = (game: Videojuego): void => {
   selectedGameForReviews.value = game
   reseniaPanel.value = true
@@ -629,21 +559,24 @@ const resetearFormularioResenia = (): void => {
 
 const addReview = async (): Promise<void> => {
   if (!selectedGameForReviews.value || !reseniaFormulario.value.validate()) return
-  
   addingReview.value = true
+
+  const Resenia = {
+    game_id: Date.now(),
+    user_id: nuevaResenia.value.usuario,
+    score: nuevaResenia.value.calificacion,
+    comment: nuevaResenia.value.comentario
+  }
+    
   
   try {
-    // Simular llamada a API
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    const review: Resenia = {
-      id: Date.now(),
-      usuario: nuevaResenia.value.usuario,
-      calificacion: nuevaResenia.value.calificacion,
-      comentario: nuevaResenia.value.comentario,
-      fecha: new Date().toISOString()
-    }
-    
+    const response = await axios.post('/api/resenas', Resenia, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000 // 10 segundos de timeout
+    })
+
     // Encontrar el juego y agregar la reseña
     const gameIndex = videogames.value.findIndex(g => g.id === selectedGameForReviews.value!.id)
     if (gameIndex > -1) {
@@ -669,11 +602,11 @@ const addReview = async (): Promise<void> => {
   }
 }
 
-const getAverageRating = (gameId: number): number => {
+const getAverageRating = (gameId: string): number => {
   const game = videogames.value.find(g => g.id === gameId)
   if (!game || game.reviews.length === 0) return 0
   
-  const sum = game.reviews.reduce((acc, review) => acc + review.calificacion, 0)
+  const sum = game.reviews.reduce((acc, review) => acc + review.score, 0)
   return sum / game.reviews.length
 }
 
@@ -711,8 +644,9 @@ const getGenreIcon = (genre: string): string => {
   return iconMap[genre] || 'mdi-gamepad-variant'
 }
 
-onMounted(() => {
-  console.log('Lista de videojuegos cargada')
+onMounted(async () => {
+  console.log('Cargando videojuegos desde la API...')
+  await cargarVideojuegos()
 })
 </script>
 
