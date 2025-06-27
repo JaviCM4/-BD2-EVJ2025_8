@@ -1,8 +1,10 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const router = express.Router();
 
-module.exports = (redisClient) => {
+module.exports = (redisClient, metrics) => {
+  const router = express.Router();
+  const { gamesCreatedCounter } = metrics || {};
+
   // Crear juego
   router.post('/', async (req, res) => {
     const { title, genre, developer } = req.body;
@@ -10,6 +12,10 @@ module.exports = (redisClient) => {
     const key = `game:${gameId}`;
 
     await redisClient.hSet(key, { title, genre, developer });
+
+    if (gamesCreatedCounter) {
+      gamesCreatedCounter.inc();
+    }
 
     res.status(201).json({ gameId, mensaje: 'Juego creado' });
   });

@@ -1,11 +1,18 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const router = express.Router();
 
-module.exports = (redisClient) => {
+module.exports = (redisClient, metrics) => {
+  const router = express.Router();
+
+  const { reviewsTotalCounter } = metrics || {};
+
   // Crear reseña
   router.post('/', async (req, res) => {
     const { game_id, user_id, score, comment } = req.body;
+
+    if (!game_id || !user_id) {
+      return res.status(400).json({ mensaje: 'game_id y user_id son requeridos' });
+    }
 
     const reviewIndexKey = `review_by_user:${user_id}:${game_id}`;
     const existingReviewId = await redisClient.get(reviewIndexKey);
@@ -27,6 +34,13 @@ module.exports = (redisClient) => {
       comment,
       timestamp
     });
+
+    // Agregar referencia para evitar duplicados
+    await redisClient.set(reviewIndexKey, reviewId);
+
+    if (reviewsTotalCounter) {
+      reviewsTotalCounter.inc();
+    }
 
     res.status(201).json({ reviewId, mensaje: 'Reseña creada' });
   });

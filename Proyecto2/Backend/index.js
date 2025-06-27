@@ -1,12 +1,17 @@
 require('dotenv').config();
 const express = require('express');
 const { createClient } = require('redis');
-const { Counter, Histogram, register, collectDefaultMetrics } = require('prom-client');
+const {
+  Counter,
+  Histogram,
+  register,
+  collectDefaultMetrics
+} = require('prom-client');
 
 const app = express();
 app.use(express.json());
 
-// Iniciar recolección de métricas por defecto (uso de CPU, memoria, etc.)
+// Recolección de métricas por defecto (CPU, memoria, etc.)
 collectDefaultMetrics();
 
 // MÉTRICAS PERSONALIZADAS
@@ -20,6 +25,21 @@ const requestDuration = new Histogram({
   name: 'api_request_duration_seconds',
   help: 'Request duration in seconds',
   labelNames: ['endpoint']
+});
+
+const gamesCreatedCounter = new Counter({
+  name: 'games_created_total',
+  help: 'Total number of games created'
+});
+
+const reviewsTotalCounter = new Counter({
+  name: 'reviews_total',
+  help: 'Total number of reviews posted'
+});
+
+const userRegistrationsCounter = new Counter({
+  name: 'user_registrations_total',
+  help: 'Total number of users registered'
 });
 
 // Middleware para contar y medir duración de las peticiones
@@ -38,14 +58,21 @@ redisClient.on('error', (err) => console.error('Redis Error:', err));
   await redisClient.connect();
   console.log('🔗 Conectado a Redis');
 
-  // Importar y montar rutas
-  const usuariosRouter = require('./routes/usuarios')(redisClient);
+  // Compartir métricas con rutas
+  const metrics = {
+    gamesCreatedCounter,
+    reviewsTotalCounter,
+    userRegistrationsCounter
+  };
+
+  // Importar y montar rutas con Redis + métricas
+  const usuariosRouter = require('./routes/usuarios')(redisClient, metrics);
   app.use('/usuarios', usuariosRouter);
 
-  const juegosRouter = require('./routes/juegos')(redisClient);
+  const juegosRouter = require('./routes/juegos')(redisClient, metrics);
   app.use('/juegos', juegosRouter);
 
-  const resenasRouter = require('./routes/resenas')(redisClient);
+  const resenasRouter = require('./routes/resenas')(redisClient, metrics);
   app.use('/resenas', resenasRouter);
 
   const loginRouter = require('./routes/login')(redisClient);

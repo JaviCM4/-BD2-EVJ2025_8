@@ -1,8 +1,11 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const router = express.Router();
 
-module.exports = (redisClient) => {
+module.exports = (redisClient, metrics) => {
+  const router = express.Router();
+
+  const { userRegistrationsCounter } = metrics || {};
+
   // Crear usuario
   router.post('/', async (req, res) => {
     const { username, email, password_hash, rol } = req.body;
@@ -20,6 +23,10 @@ module.exports = (redisClient) => {
       password_hash,
       rol: String(rol) // se guarda como string en Redis
     });
+
+    if (userRegistrationsCounter) {
+      userRegistrationsCounter.inc();
+    }
 
     res.status(201).json({ userId, mensaje: 'Usuario creado con rol' });
   });
