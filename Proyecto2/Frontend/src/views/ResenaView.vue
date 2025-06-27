@@ -12,13 +12,13 @@
             >
               <v-card-text class="text-center py-8">
                 <v-icon size="64" color="cyan-accent-2" class="mb-4">
-                  mdi-account-group-outline
+                  mdi-star-outline
                 </v-icon>
                 <h1 class="text-h4 font-weight-bold text-white mb-2">
-                  Lista de Usuarios
+                  Mis Reseñas
                 </h1>
                 <p class="text-subtitle-1 text-cyan-accent-2 mb-0">
-                  Panel de administración - {{ filteredUsers.length }} usuarios registrados
+                  Usuario: {{ currentUser }} - {{ reviews.length }} reseñas publicadas
                 </p>
               </v-card-text>
             </v-card>
@@ -30,7 +30,7 @@
           <v-col cols="12" md="8" lg="6">
             <v-text-field
               v-model="searchQuery"
-              label="Buscar gamer..."
+              label="Buscar en mis reseñas..."
               prepend-icon="mdi-magnify"
               variant="outlined"
               density="compact"
@@ -40,22 +40,22 @@
               :disabled="loading"
             >
               <template v-slot:append-inner>
-                <v-icon color="cyan-accent-2">mdi-account-search</v-icon>
+                <v-icon color="cyan-accent-2">mdi-comment-search-outline</v-icon>
               </template>
             </v-text-field>
           </v-col>
         </v-row>
 
-        <!-- Lista de usuarios -->
+        <!-- Lista de reseñas -->
         <v-row justify="center">
           <v-col cols="12" md="10" lg="8">
             <v-card elevation="16" class="rounded-xl glass-card">
               <v-card-title class="text-h5 font-weight-bold gaming-gradient text-white pa-6">
-                <v-icon class="mr-3" color="white">mdi-gamepad-variant</v-icon>
-                Gamers Registrados
+                <v-icon class="mr-3" color="white">mdi-comment-text-multiple</v-icon>
+                Mis Reseñas de Juegos
                 <v-spacer></v-spacer>
                 <v-btn
-                  @click="loadUsers"
+                  @click="loadReviews"
                   :loading="loading"
                   color="white"
                   variant="outlined"
@@ -76,10 +76,10 @@
                     class="mb-4"
                   ></v-progress-circular>
                   <h3 class="text-h6 text-dark mb-2">
-                    Cargando gamers...
+                    Cargando reseñas...
                   </h3>
                   <p class="text-dark">
-                    Obteniendo datos del servidor
+                    Obteniendo tus reseñas del servidor
                   </p>
                 </div>
 
@@ -89,13 +89,13 @@
                     mdi-alert-circle-outline
                   </v-icon>
                   <h3 class="text-h6 text-error mb-2">
-                    Error al cargar datos
+                    Error al cargar reseñas
                   </h3>
                   <p class="text-dark mb-4">
                     {{ error }}
                   </p>
                   <v-btn
-                    @click="loadUsers"
+                    @click="loadReviews"
                     color="error"
                     variant="outlined"
                   >
@@ -104,47 +104,52 @@
                   </v-btn>
                 </div>
 
-                <!-- Lista de usuarios -->
+                <!-- Lista de reseñas -->
                 <v-list v-else class="transparent">
-                  <template v-for="(user, index) in filteredUsers" :key="user.id">
+                  <template v-for="(review, index) in filteredReviews" :key="review.id">
                     <v-list-item
                       class="gaming-list-item px-6 py-4"
-                      @click="openUserDetail(user)"
+                      @click="openReviewDetail(review)"
                     >
                       <template v-slot:prepend>
                         <v-avatar
                           size="56"
                           class="gaming-avatar"
-                          :color="getAvatarColor(user.username)"
+                          :color="getScoreColor(review.score)"
                         >
                           <v-icon size="28" color="white">
-                            {{ getAvatarIcon(user.username) }}
+                            mdi-star
                           </v-icon>
                         </v-avatar>
                       </template>
 
                       <v-list-item-title class="text-dark font-weight-bold text-h6 mb-1">
-                        {{ user.username }}
+                        {{ getGameName(review.game_id) }}
                       </v-list-item-title>
                       
-                      <v-list-item-subtitle class="text-dark-secondary mb-1">
-                        <v-icon size="16" class="mr-2" color="dark-secondary">mdi-email</v-icon>
-                        {{ user.email }}
+                      <v-list-item-subtitle class="text-dark-secondary mb-2">
+                        <v-rating
+                          :model-value="parseInt(review.score)"
+                          color="amber"
+                          density="compact"
+                          size="small"
+                          readonly
+                        ></v-rating>
+                        <span class="ml-2 font-weight-bold">{{ review.score }}/5</span>
+                      </v-list-item-subtitle>
+
+                      <v-list-item-subtitle class="text-dark-secondary mb-2">
+                        <v-icon size="16" class="mr-2" color="dark-secondary">mdi-comment-text</v-icon>
+                        {{ truncateComment(review.comment) }}
                       </v-list-item-subtitle>
 
                       <v-list-item-subtitle class="text-dark-secondary">
-                        <v-chip
-                          :color="getRoleColor(user.rol)"
-                          size="small"
-                          variant="tonal"
-                        >
-                          <v-icon start size="16">{{ getRoleIcon(user.rol) }}</v-icon>
-                          {{ getRoleName(user.rol) }}
-                        </v-chip>
+                        <v-icon size="16" class="mr-2" color="dark-secondary">mdi-clock-outline</v-icon>
+                        {{ formatDate(review.timestamp) }}
                       </v-list-item-subtitle>
 
                       <template v-slot:append>
-                        <div class="d-flex flex-column align-center">
+                        <div class="d-flex flex-column align-center gap-2">
                           <v-btn
                             size="small"
                             color="cyan-accent-2"
@@ -153,27 +158,36 @@
                           >
                             <v-icon size="16">mdi-information</v-icon>
                           </v-btn>
+                          <v-btn
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            class="gaming-btn-mini"
+                            @click.stop="confirmDelete(review)"
+                          >
+                            <v-icon size="16">mdi-delete</v-icon>
+                          </v-btn>
                         </div>
                       </template>
                     </v-list-item>
                     
                     <v-divider 
-                      v-if="index < filteredUsers.length - 1" 
+                      v-if="index < filteredReviews.length - 1" 
                       class="gaming-divider mx-6"
                     ></v-divider>
                   </template>
                 </v-list>
 
                 <!-- Estado vacío -->
-                <div v-if="!loading && !error && filteredUsers.length === 0" class="text-center py-12">
+                <div v-if="!loading && !error && filteredReviews.length === 0" class="text-center py-12">
                   <v-icon size="64" color="cyan-accent-2" class="mb-4">
-                    mdi-account-search-outline
+                    mdi-comment-search-outline
                   </v-icon>
                   <h3 class="text-h6 text-dark mb-2">
-                    {{ searchQuery ? 'No se encontraron gamers' : 'No hay gamers registrados' }}
+                    {{ searchQuery ? 'No se encontraron reseñas' : 'No tienes reseñas' }}
                   </h3>
                   <p class="text-dark">
-                    {{ searchQuery ? 'Intenta con otro término de búsqueda' : 'Los nuevos registros aparecerán aquí' }}
+                    {{ searchQuery ? 'Intenta con otro término de búsqueda' : 'Tus reseñas aparecerán aquí cuando las publiques' }}
                   </p>
                 </div>
               </v-card-text>
@@ -183,37 +197,35 @@
       </v-container>
     </v-main>
 
-    <!-- Modal de detalles del usuario -->
+    <!-- Modal de detalles de la reseña -->
     <v-dialog v-model="dialog" max-width="600" persistent>  
       <v-card class="glass-card gaming-modal">
         <v-card-title class="gaming-gradient text-white pa-6">
-          <v-icon class="mr-3" color="white">mdi-account-details</v-icon>
-          Detalles del Gamer
+          <v-icon class="mr-3" color="white">mdi-comment-text</v-icon>
+          Detalles de la Reseña
         </v-card-title>
 
-        <v-card-text v-if="selectedUser" class="pa-6 card-content">
-          <!-- Avatar y datos básicos -->
+        <v-card-text v-if="selectedReview" class="pa-6 card-content">
+          <!-- Rating y datos básicos -->
           <div class="text-center mb-6">
             <v-avatar
               size="80"
               class="gaming-avatar mb-4"
-              :color="getAvatarColor(selectedUser.username)"
+              :color="getScoreColor(selectedReview.score)"
             >
-              <v-icon size="40" color="white">
-                {{ getAvatarIcon(selectedUser.username) }}
-              </v-icon>
+              <v-icon size="40" color="white">mdi-star</v-icon>
             </v-avatar>
-            <h2 class="text-h5 text-dark font-weight-bold mb-2">
-              {{ selectedUser.username }}
-            </h2>
-            <v-chip
-              :color="getRoleColor(selectedUser.rol)"
-              size="large"
-              variant="tonal"
-            >
-              <v-icon start size="20">{{ getRoleIcon(selectedUser.rol) }}</v-icon>
-              {{ getRoleName(selectedUser.rol) }}
-            </v-chip>
+            <div class="mb-4">
+              <v-rating
+                :model-value="parseInt(selectedReview.score)"
+                color="amber"
+                size="large"
+                readonly
+              ></v-rating>
+              <p class="text-h5 text-dark font-weight-bold mt-2">
+                {{ selectedReview.score }}/5 estrellas
+              </p>
+            </div>
           </div>
 
           <!-- Información detallada -->
@@ -222,26 +234,35 @@
               <div class="info-item mb-4">
                 <v-icon color="cyan-accent-2" class="mr-2">mdi-identifier</v-icon>
                 <div>
-                  <p class="text-dark font-weight-bold text-h6 mb-1">ID de Usuario</p>
-                  <p class="text-dark text-body-2" style="font-family: monospace;">{{ selectedUser.id }}</p>
+                  <p class="text-dark font-weight-bold text-h6 mb-1">ID de Reseña</p>
+                  <p class="text-dark text-body-2" style="font-family: monospace;">{{ selectedReview.id }}</p>
                 </div>
               </div>
             </v-col>
             <v-col cols="12">
               <div class="info-item mb-4">
-                <v-icon color="cyan-accent-2" class="mr-2">mdi-email</v-icon>
+                <v-icon color="cyan-accent-2" class="mr-2">mdi-gamepad-variant</v-icon>
                 <div>
-                  <p class="text-dark font-weight-bold text-h6 mb-1">Correo Electrónico</p>
-                  <p class="text-dark">{{ selectedUser.email }}</p>
+                  <p class="text-dark font-weight-bold text-h6 mb-1">Juego</p>
+                  <p class="text-dark">{{ getGameName(selectedReview.game_id) }}</p>
                 </div>
               </div>
             </v-col>
             <v-col cols="12">
               <div class="info-item mb-4">
-                <v-icon color="cyan-accent-2" class="mr-2">mdi-shield-account</v-icon>
+                <v-icon color="cyan-accent-2" class="mr-2">mdi-comment-text</v-icon>
                 <div>
-                  <p class="text-dark font-weight-bold text-h6 mb-1">Rol</p>
-                  <p class="text-dark">{{ getRoleName(selectedUser.rol) }}</p>
+                  <p class="text-dark font-weight-bold text-h6 mb-1">Comentario</p>
+                  <p class="text-dark">{{ selectedReview.comment }}</p>
+                </div>
+              </div>
+            </v-col>
+            <v-col cols="12">
+              <div class="info-item mb-4">
+                <v-icon color="cyan-accent-2" class="mr-2">mdi-clock-outline</v-icon>
+                <div>
+                  <p class="text-dark font-weight-bold text-h6 mb-1">Fecha de Publicación</p>
+                  <p class="text-dark">{{ formatDate(selectedReview.timestamp) }}</p>
                 </div>
               </div>
             </v-col>
@@ -261,12 +282,46 @@
           <v-spacer></v-spacer>
           <v-btn
             color="error"
-            @click="deleteUser"
+            @click="deleteReview"
             :loading="deleting"
             class="gaming-btn"
           >
             <v-icon start>mdi-delete</v-icon>
-            Eliminar Gamer
+            Eliminar Reseña
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Diálogo de confirmación para eliminar -->
+    <v-dialog v-model="deleteDialog" max-width="400" persistent>
+      <v-card class="glass-card">
+        <v-card-title class="text-h6 gaming-gradient text-white pa-4">
+          <v-icon class="mr-2" color="white">mdi-delete-alert</v-icon>
+          Confirmar Eliminación
+        </v-card-title>
+        <v-card-text class="pa-4 card-content">
+          <p class="text-dark mb-0">
+            ¿Estás seguro de que deseas eliminar esta reseña? Esta acción no se puede deshacer.
+          </p>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0 card-content">
+          <v-btn
+            variant="outlined"
+            @click="deleteDialog = false"
+            class="gaming-btn"
+          >
+            Cancelar
+          </v-btn>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="error"
+            @click="deleteReview"
+            :loading="deleting"
+            class="gaming-btn"
+          >
+            <v-icon start>mdi-delete</v-icon>
+            Eliminar
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -297,12 +352,20 @@ import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 
 // Interfaces
-interface User {
+interface Review {
   id: string
-  username: string
-  email: string
-  password_hash: string
-  rol: string
+  game_id: string
+  user_id: string
+  score: string
+  comment: string
+  timestamp: string
+}
+
+interface Game {
+  id: string
+  title: string
+  genre: string
+  developer: string
 }
 
 interface Snackbar {
@@ -314,10 +377,13 @@ interface Snackbar {
 // Refs
 const searchQuery = ref('')
 const dialog = ref(false)
-const selectedUser = ref<User | null>(null)
+const deleteDialog = ref(false)
+const selectedReview = ref<Review | null>(null)
+const reviewToDelete = ref<Review | null>(null)
 const deleting = ref(false)
 const loading = ref(false)
 const error = ref<string | null>(null)
+const currentUser = ref('')
 
 const snackbar = ref<Snackbar>({
   show: false,
@@ -325,146 +391,192 @@ const snackbar = ref<Snackbar>({
   color: 'success'
 })
 
-// Lista de usuarios desde la API
-const users = ref<User[]>([])
+// Lista de reseñas desde la API
+const reviews = ref<Review[]>([])
+
+// Cache de juegos para evitar peticiones repetidas
+const games = ref<Record<string, Game>>({})
 
 // Computed
-const filteredUsers = computed(() => {
-  // Primero filtrar solo usuarios con rol = 2
-  const usersWithRole2 = users.value.filter(user => user.rol === '2')
-  
-  // Luego aplicar el filtro de búsqueda si existe
-  if (!searchQuery.value) return usersWithRole2
+const filteredReviews = computed(() => {
+  if (!searchQuery.value) return reviews.value
   
   const query = searchQuery.value.toLowerCase()
-  return usersWithRole2.filter(user =>
-    user.username.toLowerCase().includes(query) ||
-    user.email.toLowerCase().includes(query)
-  )
+  return reviews.value.filter(review => {
+    const gameName = getGameName(review.game_id).toLowerCase()
+    return review.comment.toLowerCase().includes(query) ||
+           gameName.includes(query) ||
+           review.score.includes(query)
+  })
 })
 
 // Methods
-const loadUsers = async (): Promise<void> => {
+const loadGameData = async (gameId: string): Promise<void> => {
+  // Si ya tenemos los datos del juego en cache, no hacer petición
+  if (games.value[gameId]) {
+    return
+  }
+
+  try {
+    const response = await axios.get(`/api/juegos/${gameId}`)
+    games.value[gameId] = response.data
+  } catch (err: any) {
+    console.error(`Error loading game data for ${gameId}:`, err)
+    // Añadir un juego placeholder para evitar peticiones repetidas fallidas
+    games.value[gameId] = {
+      id: gameId,
+      title: 'Juego no encontrado',
+      genre: 'Desconocido',
+      developer: 'Desconocido'
+    }
+  }
+}
+
+const getGameName = (gameId: string): string => {
+  const game = games.value[gameId]
+  if (game) {
+    return game.title
+  }
+  
+  // Si no tenemos los datos del juego, cargarlos
+  loadGameData(gameId)
+  
+  // Mientras carga, mostrar un placeholder
+  return `Cargando... (${gameId.substring(0, 8)}...)`
+}
+
+const loadReviews = async (): Promise<void> => {
   loading.value = true
   error.value = null
   
   try {
-    const response = await axios.get('/api/usuarios')
-    users.value = response.data
+    const response = await axios.get('/api/resenas')
+    const allReviews = response.data
+    
+    // Filtrar solo las reseñas del usuario actual
+    const username = localStorage.getItem('username')
+    if (!username) {
+      throw new Error('No se encontró el usuario en localStorage')
+    }
+    
+    currentUser.value = username
+    reviews.value = allReviews.filter((review: Review) => review.user_id === username)
+    
+    // Cargar datos de todos los juegos únicos
+    const uniqueGameIds = [...new Set(reviews.value.map(review => review.game_id))]
+    await Promise.all(uniqueGameIds.map(gameId => loadGameData(gameId)))
     
     snackbar.value = {
       show: true,
-      message: `${users.value.length} gamers cargados exitosamente`,
+      message: `${reviews.value.length} reseñas cargadas exitosamente`,
       color: 'success'
     }
   } catch (err: any) {
-    error.value = err.response?.data?.message || 'Error al cargar los usuarios'
+    error.value = err.response?.data?.message || err.message || 'Error al cargar las reseñas'
     snackbar.value = {
       show: true,
-      message: 'Error al cargar los usuarios',
+      message: 'Error al cargar las reseñas',
       color: 'error'
     }
-    console.error('Error loading users:', err)
+    console.error('Error loading reviews:', err)
   } finally {
     loading.value = false
   }
 }
 
-const openUserDetail = (user: User): void => {
-  selectedUser.value = user
+const openReviewDetail = (review: Review): void => {
+  selectedReview.value = review
   dialog.value = true
 }
 
 const closeDialog = (): void => {
   dialog.value = false
-  selectedUser.value = null
+  selectedReview.value = null
 }
 
-const deleteUser = async (): Promise<void> => {
-  if (!selectedUser.value) return
+const confirmDelete = (review: Review): void => {
+  reviewToDelete.value = review
+  deleteDialog.value = true
+}
+
+const deleteReview = async (): Promise<void> => {
+  const reviewToDeleteRef = reviewToDelete.value || selectedReview.value
+  if (!reviewToDeleteRef) return
   
   deleting.value = true
   
   try {
-    // Llamada a la API para eliminar usuario
-    await axios.delete(`/api/usuarios/${selectedUser.value.id}`)
+    // Llamada a la API para eliminar reseña
+    await axios.delete(`/api/resenas/${reviewToDeleteRef.id}`)
     
-    // Eliminar usuario de la lista local
-    const index = users.value.findIndex(u => u.id === selectedUser.value!.id)
+    // Eliminar reseña de la lista local
+    const index = reviews.value.findIndex(r => r.id === reviewToDeleteRef.id)
     if (index > -1) {
-      users.value.splice(index, 1)
+      reviews.value.splice(index, 1)
     }
     
     snackbar.value = {
       show: true,
-      message: `Gamer ${selectedUser.value.username} eliminado exitosamente`,
+      message: 'Reseña eliminada exitosamente',
       color: 'success'
     }
     
     // Cerrar diálogos
     dialog.value = false
-    selectedUser.value = null
+    deleteDialog.value = false
+    selectedReview.value = null
+    reviewToDelete.value = null
     
   } catch (err: any) {
     snackbar.value = {
       show: true,
-      message: err.response?.data?.message || 'Error al eliminar el gamer. Inténtalo de nuevo.',
+      message: err.response?.data?.message || 'Error al eliminar la reseña. Inténtalo de nuevo.',
       color: 'error'
     }
-    console.error('Error deleting user:', err)
+    console.error('Error deleting review:', err)
   } finally {
     deleting.value = false
   }
 }
 
-const getRoleName = (rol: string): string => {
-  switch (rol) {
-    case '1':
-      return 'Administrador'
-    case '2':
-      return 'Usuario'
-    default:
-      return 'Desconocido'
-  }
+const getScoreColor = (score: string): string => {
+  const scoreNum = parseInt(score)
+  if (scoreNum >= 4) return 'green'
+  if (scoreNum >= 3) return 'amber'
+  return 'red'
 }
 
-const getRoleColor = (rol: string): string => {
-  switch (rol) {
-    case '1':
-      return 'red-darken-2'
-    case '2':
-      return 'blue-darken-2'
-    default:
-      return 'grey'
-  }
+const truncateComment = (comment: string): string => {
+  if (comment.length <= 80) return comment
+  return comment.substring(0, 80) + '...'
 }
 
-const getRoleIcon = (rol: string): string => {
-  switch (rol) {
-    case '1':
-      return 'mdi-shield-crown'
-    case '2':
-      return 'mdi-account-circle'
-    default:
-      return 'mdi-help-circle'
-  }
-}
-
-const getAvatarColor = (username: string): string => {
-  const colors = ['deep-purple', 'indigo', 'blue', 'cyan', 'teal', 'green', 'amber', 'orange', 'red', 'pink']
-  const index = username.length % colors.length
-  return colors[index]
-}
-
-const getAvatarIcon = (username: string): string => {
-  const icons = ['mdi-gamepad-variant', 'mdi-sword', 'mdi-shield', 'mdi-rocket', 'mdi-crown', 'mdi-star', 'mdi-diamond', 'mdi-flash']
-  const index = username.charCodeAt(0) % icons.length
-  return icons[index]
+const formatDate = (timestamp: string): string => {
+  const date = new Date(parseInt(timestamp))
+  return date.toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 // Lifecycle
 onMounted(() => {
-  loadUsers()
+  // Verificar si hay usuario en localStorage
+  const username = localStorage.getItem('username')
+  if (!username) {
+    snackbar.value = {
+      show: true,
+      message: 'No se encontró información del usuario',
+      color: 'error'
+    }
+    return
+  }
+  
+  currentUser.value = username
+  loadReviews()
 })
 </script>
 

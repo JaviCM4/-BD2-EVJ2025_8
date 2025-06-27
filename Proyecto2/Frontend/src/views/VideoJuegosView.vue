@@ -204,6 +204,7 @@
                                     </span>
                                   </v-avatar>
                                   <span class="text-body-2 font-weight-medium text-dark mr-2">{{ review.user_id }}</span>
+                                  <span class="text-caption text-dark-secondary">{{ formatTimestamp(review.timestamp) }}</span>
                                   <v-rating
                                     :model-value="review.score"
                                     color="amber"
@@ -302,70 +303,60 @@
         </v-card-title>
 
         <v-card-text class="pa-6 card-content" style="max-height: 70vh; overflow-y: auto;">
-          <!-- Formulario para nueva reseña -->
-          <v-card class="mb-6 elevation-4" color="rgba(24, 34, 148, 0.1)">
-            <v-card-title class="text-dark pb-4">
-              <v-icon color="cyan-accent-2" class="mr-2">mdi-plus</v-icon>
-              Agregar Nueva Reseña
-            </v-card-title>
-            <v-card-text>
-              <v-form ref="reseniaFormulario" v-model="reseniaValida">
-                <v-row>
-                  <v-col cols="12" md="6">
-                    <v-text-field
-                      v-model="nuevaResenia.usuario"
-                      label="Tu nombre de usuario"
-                      variant="outlined"
-                      density="compact"
-                      color="cyan-accent-2"
-                      required
-                      :rules="[v => !!v || 'El nombre es obligatorio']"
-                      class="review-input"
-                    ></v-text-field>
-                  </v-col>
-                  <v-col cols="12" md="6">
-                    <div class="d-flex align-center">
-                      <span class="text-dark mr-3">Calificación:</span>
-                      <v-rating
-                        v-model="nuevaResenia.calificacion"
-                        color="amber"
-                        hover
-                        :rules="[v => v > 0 || 'Debes dar una calificación']"
-                      ></v-rating>
-                    </div>
-                  </v-col>
-                  <v-col cols="12">
-                    <v-textarea
-                      v-model="nuevaResenia.comentario"
-                      label="Tu reseña"
-                      variant="outlined"
-                      rows="3"
-                      color="cyan-accent-2"
-                      required
-                      :rules="[v => !!v || 'El comentario es obligatorio', v => (v && v.length >= 10) || 'Mínimo 10 caracteres']"
-                      class="review-input"
-                    ></v-textarea>
-                  </v-col>
-                </v-row>
-                <v-btn
-                  color="cyan-accent-2"
-                  @click="addReview"
-                  :disabled="!reseniaValida"
-                  :loading="addingReview"
-                  class="gaming-btn"
-                >
-                  <v-icon start>mdi-plus</v-icon>
-                  Publicar Reseña
-                </v-btn>
-              </v-form>
-            </v-card-text>
-          </v-card>
+          <template v-if="userRole === '2'">
+            <!-- Formulario para nueva reseña -->
+            <v-card class="mb-6 elevation-4" color="rgba(24, 34, 148, 0.1)">
+              <v-card-title class="text-dark pb-4">
+                <v-icon color="cyan-accent-2" class="mr-2">mdi-plus</v-icon>
+                Agregar Nueva Reseña
+              </v-card-title>
+              <v-card-text>
+                <v-form ref="reseniaFormulario" v-model="reseniaValida">
+                  <v-row>
+                    <v-col cols="12" md="6">
+                      <div class="d-flex align-center">
+                        <span class="text-dark mr-3">Calificación:</span>
+                        <v-rating
+                          v-model="nuevaResenia.calificacion"
+                          color="amber"
+                          hover
+                          :rules="[(v: number) => v > 0 || 'Debes dar una calificación']"
+                        ></v-rating>
+                      </div>
+                    </v-col>
+                    <v-col cols="12">
+                      <v-textarea
+                        v-model="nuevaResenia.comentario"
+                        label="Tu reseña"
+                        variant="outlined"
+                        rows="3"
+                        color="cyan-accent-2"
+                        required
+                        :rules="[v => !!v || 'El comentario es obligatorio', v => (v && v.length >= 10) || 'Mínimo 10 caracteres']"
+                        class="review-input"
+                      ></v-textarea>
+                    </v-col>
+                  </v-row>
+                  <v-btn
+                    color="cyan-accent-2"
+                    @click="addReview"
+                    :disabled="!reseniaValida"
+                    :loading="addingReview"
+                    class="gaming-btn"
+                  >
+                    <v-icon start>mdi-plus</v-icon>
+                    Publicar Reseña
+                  </v-btn>
+                </v-form>
+              </v-card-text>
+            </v-card>
+          </template>
 
           <!-- Lista de reseñas existentes -->
-          <div v-if="selectedGameForReviews?.reviews.length > 0">
+          <div v-if="selectedGameForReviews?.reviews?.length && selectedGameForReviews.reviews.length > 0">
             <h3 class="text-h6 text-dark mb-4">
               <v-icon color="cyan-accent-2" class="mr-2">mdi-comment-multiple</v-icon>
-              Reseñas ({{ selectedGameForReviews.reviews.length }})
+              Reseñas ({{ selectedGameForReviews?.reviews.length || 0}})
             </h3>
             
             <v-card
@@ -384,6 +375,7 @@
                     </v-avatar>
                     <div>
                       <p class="text-dark font-weight-bold mb-0">{{ review.user_id }}</p>
+                      <span class="text-caption text-dark-secondary mr-2">{{ formatTimestamp(review.timestamp) }}</span>
                     </div>
                   </div>
                   <v-rating
@@ -446,10 +438,12 @@ import axios from 'axios'
 
 // Interfaces
 interface Resenia {
-  game_id: number
+  id: string
+  game_id: string
   user_id: string
   score: number
   comment: string
+  timestamp: string
 }
 
 interface Videojuego {
@@ -475,6 +469,10 @@ const reseniaValida = ref(false)
 const reseniaFormulario = ref<any>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
+// Local
+const username = ref('')
+const userRole = ref('')
+
 
 const nuevaResenia = ref({
   usuario: '',
@@ -504,6 +502,11 @@ const filteredGames = computed(() => {
 })
 
 // Métodos
+const loadUserData = () => {
+    username.value = localStorage.getItem('username') || ''
+    userRole.value = localStorage.getItem('userRol') || ''
+}
+
 const cargarVideojuegos = async (): Promise<void> => {
   loading.value = true
   error.value = null
@@ -511,14 +514,17 @@ const cargarVideojuegos = async (): Promise<void> => {
   try {
     const response = await axios.get('/api/juegos')
     
-    // Mapear los datos de la API al formato local y agregar array de reviews vacío
+    // Mapear los datos de la API al formato local
     videogames.value = response.data.map((game: any) => ({
       id: game.id,
       title: game.title,
       genre: game.genre,
       developer: game.developer,
-      reviews: [] // Array vacío para las reseñas (se manejará después)
+      reviews: [] // Se llenarán con cargarResenias()
     }))
+    
+    // Cargar las reseñas después de cargar los juegos
+    await cargarResenias()
     
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Error al cargar los videojuegos'
@@ -531,6 +537,26 @@ const cargarVideojuegos = async (): Promise<void> => {
     }
   } finally {
     loading.value = false
+  }
+}
+
+const cargarResenias = async (): Promise<void> => {
+  try {
+    const response = await axios.get('/api/resenas')
+    const resenias: Resenia[] = response.data
+    
+    // Agrupar reseñas por game_id y asignarlas a cada juego
+    videogames.value.forEach(game => {
+      game.reviews = resenias.filter(resenia => resenia.game_id === game.id)
+    })
+    
+  } catch (err: any) {
+    console.error('Error cargando reseñas:', err)
+    snackbar.value = {
+      show: true,
+      message: 'Error al cargar las reseñas',
+      color: 'warning'
+    }
   }
 }
 
@@ -561,26 +587,27 @@ const addReview = async (): Promise<void> => {
   if (!selectedGameForReviews.value || !reseniaFormulario.value.validate()) return
   addingReview.value = true
 
-  const Resenia = {
-    game_id: Date.now(),
-    user_id: nuevaResenia.value.usuario,
+  const nuevaOpinion = {
+    game_id: selectedGameForReviews.value.id,
+    user_id: username.value,
     score: nuevaResenia.value.calificacion,
     comment: nuevaResenia.value.comentario
   }
-    
   
   try {
-    const response = await axios.post('/api/resenas', Resenia, {
+    const response = await axios.post('/api/resenas', nuevaOpinion, {
       headers: {
         'Content-Type': 'application/json',
       },
       timeout: 10000 // 10 segundos de timeout
     })
 
-    // Encontrar el juego y agregar la reseña
+    // Encontrar el juego y agregar la reseña localmente
     const gameIndex = videogames.value.findIndex(g => g.id === selectedGameForReviews.value!.id)
     if (gameIndex > -1) {
-      videogames.value[gameIndex].reviews.push(review)
+      videogames.value[gameIndex].reviews.push(nuevaOpinion)
+      // Actualizar la referencia del juego seleccionado
+      selectedGameForReviews.value = videogames.value[gameIndex]
     }
     
     snackbar.value = {
@@ -590,11 +617,13 @@ const addReview = async (): Promise<void> => {
     }
     
     resetearFormularioResenia()
+    await cargarResenias()
     
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Error al agregar reseña:', error)
     snackbar.value = {
       show: true,
-      message: 'Error al agregar la reseña. Inténtalo de nuevo.',
+      message: error.response?.data?.message || 'Ya has publicado una reseña para este juego.',
       color: 'error'
     }
   } finally {
@@ -610,12 +639,14 @@ const getAverageRating = (gameId: string): number => {
   return sum / game.reviews.length
 }
 
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString)
+const formatTimestamp = (timestamp: string): string => {
+  const date = new Date(parseInt(timestamp))
   return date.toLocaleDateString('es-ES', {
     year: 'numeric',
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   })
 }
 
@@ -645,8 +676,9 @@ const getGenreIcon = (genre: string): string => {
 }
 
 onMounted(async () => {
-  console.log('Cargando videojuegos desde la API...')
+  console.log('Cargando videojuegos y reseñas desde la API...')
   await cargarVideojuegos()
+  await loadUserData()
 })
 </script>
 

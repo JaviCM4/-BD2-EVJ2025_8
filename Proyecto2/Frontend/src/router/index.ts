@@ -4,6 +4,7 @@ import UsuariosView from '@/views/UsuariosView.vue'
 import RegistroVideojuegoView from '@/views/RegistroVideojuegoView.vue'
 import VideoJuegosView from '@/views/VideoJuegosView.vue'
 import LoginView from '@/views/LoginView.vue'
+import ResenaView from '@/views/ResenaView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,6 +33,11 @@ const router = createRouter({
       path: '/lista-videojuegos',
       name: 'lista-videojuegos',
       component: VideoJuegosView,
+    },
+    {
+      path: '/resenas',
+      name: 'resenas',
+      component: ResenaView,
     }
   ],
 })

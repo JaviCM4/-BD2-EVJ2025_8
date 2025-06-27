@@ -38,6 +38,10 @@
                 <v-list-item to="/Registro-videojuego" title="Registro Videojuego" prepend-icon="mdi-gamepad-variant" router></v-list-item>
             </template>
 
+            <template v-if="userRole === '2'">
+                <v-list-item to="/resenas" title="Reseñas" prepend-icon="mdi-message-text" router></v-list-item>
+            </template>
+
             <v-list-item to="/lista-videojuegos" title="Videojuegos" prepend-icon="mdi-gamepad" router></v-list-item>
 
             <!-- Separador y opción de cerrar sesión para usuarios logueados -->
