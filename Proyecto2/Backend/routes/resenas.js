@@ -6,6 +6,16 @@ module.exports = (redisClient) => {
   // Crear reseña
   router.post('/', async (req, res) => {
     const { game_id, user_id, score, comment } = req.body;
+
+    const reviewIndexKey = `review_by_user:${user_id}:${game_id}`;
+    const existingReviewId = await redisClient.get(reviewIndexKey);
+
+    if (existingReviewId) {
+      return res.status(400).json({
+        mensaje: 'Ya has publicado una reseña para este juego.'
+      });
+    }
+
     const reviewId = uuidv4();
     const key = `review:${reviewId}`;
     const timestamp = Date.now().toString();
