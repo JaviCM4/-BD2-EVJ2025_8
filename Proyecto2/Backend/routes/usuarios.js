@@ -80,17 +80,67 @@ module.exports = (redisClient, metrics) => {
     res.json({ mensaje: 'Usuario actualizado' });
   });
 
-  // Eliminar un usuario por ID
-  router.delete('/:id', async (req, res) => {
-    const key = `user:${req.params.id}`;
-    const result = await redisClient.del(key);
+ // Eliminar usuario y todas sus reseñas
+router.delete('/:id', async (req, res) => {
+  const userId = req.params.id;
+  const userKey = `user:${userId}`;
 
-    if (result === 0) {
+  try {
+    // 1. Verificar si el usuario existe
+    const userExists = await redisClient.exists(userKey);
+    if (!userExists) {
       return res.status(404).json({ mensaje: 'Usuario no encontrado' });
     }
 
-    res.json({ mensaje: 'Usuario eliminado' });
-  });
+    // 2. Encontrar todas las reseñas del usuario
+    const reviewPattern = 'review:*';
+    const allReviewKeys = await redisClient.keys(reviewPattern);
+    const userReviews = [];
+
+    // Usar MULTI para obtener todas las reseñas de una vez
+    const multi = redisClient.multi();
+    allReviewKeys.forEach(key => multi.hGetAll(key));
+    const reviews = await multi.exec();
+
+    // Filtrar reseñas del usuario
+    reviews.forEach((review, index) => {
+      if (review.user_id === userId) {
+        userReviews.push({
+          key: allReviewKeys[index],
+          game_id: review.game_id
+        });
+      }
+    });
+
+    // 3. Eliminar todo en una transacción
+    const deletionMulti = redisClient.multi();
+    
+    // Eliminar usuario
+    deletionMulti.del(userKey);
+    
+    // Eliminar reseñas y sus índices
+    userReviews.forEach(({ key, game_id }) => {
+      deletionMulti.del(key);
+      deletionMulti.del(`review_by_user:${userId}:${game_id}`);
+    });
+
+    await deletionMulti.exec();
+
+    // 4. Actualizar métricas si es necesario
+    if (userRegistrationsCounter.reviewsTotalCounter) {
+      userRegistrationsCounter.reviewsTotalCounter.dec(userReviews.length);
+    }
+
+    res.json({
+      mensaje: 'Usuario y reseñas eliminados correctamente',
+      total_reseñas_eliminadas: userReviews.length
+    });
+
+  } catch (error) {
+    console.error('Error al eliminar usuario:', error);
+    res.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+});
 
   return router;
 };
