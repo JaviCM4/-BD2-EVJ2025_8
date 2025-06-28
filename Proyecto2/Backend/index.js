@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors'); 
 const { createClient } = require('redis');
 const {
   Counter,
@@ -8,7 +9,9 @@ const {
   collectDefaultMetrics
 } = require('prom-client');
 
+
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 // Recolección de métricas por defecto (CPU, memoria, etc.)
@@ -85,7 +88,7 @@ redisClient.on('error', (err) => console.error('Redis Error:', err));
   });
 
   const port = process.env.PORT || 3000;
-  app.listen(port, () => {
+  app.listen(port, '0.0.0.0', () => {
     console.log(`🚀 API corriendo en http://localhost:${port}`);
   });
 })();
