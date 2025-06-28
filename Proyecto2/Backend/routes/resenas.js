@@ -10,8 +10,8 @@ module.exports = (redisClient, metrics) => {
   router.post('/', async (req, res) => {
     const { game_id, user_id, score, comment } = req.body;
 
-    if (!game_id || !user_id) {
-      return res.status(400).json({ mensaje: 'game_id y user_id son requeridos' });
+    if (!game_id || !user_id || !score) {
+      return res.status(400).json({ mensaje: 'game_id, user_id y score son requeridos' });
     }
 
     const reviewIndexKey = `review_by_user:${user_id}:${game_id}`;

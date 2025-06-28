@@ -9,7 +9,12 @@ module.exports = (redisClient, metrics) => {
   // Crear usuario
   router.post('/', async (req, res) => {
     const { username, email, password_hash, rol } = req.body;
-
+     // Validar campos obligatorios
+    if (!username || !email || !password_hash || rol === undefined) {
+      return res.status(400).json({ 
+        mensaje: 'Todos los campos son obligatorios: username, email, password_hash, rol' 
+      });
+    }
     if (![1, 2].includes(Number(rol))) {
       return res.status(400).json({ mensaje: 'El rol debe ser 1 o 2' });
     }

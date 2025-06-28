@@ -8,6 +8,12 @@ module.exports = (redisClient, metrics) => {
   // Crear juego
   router.post('/', async (req, res) => {
     const { title, genre, developer } = req.body;
+     // Validar campos obligatorios
+    if (!title || !genre || !developer) {
+      return res.status(400).json({ 
+        mensaje: 'Todos los campos son obligatorios: title, genre, developer'
+      });
+    }
     const gameId = uuidv4();
     const key = `game:${gameId}`;
 
